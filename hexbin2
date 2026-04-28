@@ -1,0 +1,121 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from mpl_toolkits.mplot3d import proj3d
+
+# ---------- Geometry helpers ----------
+
+def hexagon(center, radius=1.0):
+    """Return 2D vertices of a regular hexagon around center."""
+    cx, cy = center
+    angles = np.linspace(0, 2 * np.pi, 7)
+    return [(cx + radius * np.cos(a), cy + radius * np.sin(a)) for a in angles]
+
+def depth(poly, ax):
+    """Projected depth of a polygon for painter's-algorithm sorting."""
+    xs, ys, zs = zip(*poly)
+    x2, y2, z2 = proj3d.proj_transform(xs, ys, zs, ax.get_proj())
+    return np.mean(z2)
+
+def set_axes_equal(ax):
+    """Force equal aspect ratio in 3D so hexes look regular."""
+    xlim = ax.get_xlim3d()
+    ylim = ax.get_ylim3d()
+    zlim = ax.get_zlim3d()
+
+    ranges = np.array([xlim[1] - xlim[0],
+                       ylim[1] - ylim[0],
+                       zlim[1] - zlim[0]])
+    centers = np.array([np.mean(xlim),
+                        np.mean(ylim),
+                        np.mean(zlim)])
+    radius = 0.5 * max(ranges)
+
+    ax.set_xlim3d([centers[0] - radius, centers[0] + radius])
+    ax.set_ylim3d([centers[1] - radius, centers[1] + radius])
+    ax.set_zlim3d([centers[2] - radius, centers[2] + radius])
+
+# ---------- Grid + heights ----------
+
+def generate_hex_grid(grid_radius, hex_radius):
+    """
+    Hex-shaped grid of axial radius R.
+    R=8 → 17 tiles corner-to-corner.
+    """
+    centers = []
+    R = grid_radius
+    for q in range(-R, R + 1):
+        r1 = max(-R, -q - R)
+        r2 = min(R, -q + R)
+        for r in range(r1, r2 + 1):
+            x = hex_radius * 3/2 * q
+            y = hex_radius * np.sqrt(3) * (r + q / 2)
+            centers.append((x, y))
+    return centers
+
+def generate_heights(centers):
+    """Smooth radial height field for nice basalt-y structure."""
+    heights = []
+    for x, y in centers:
+        r = np.sqrt(x**2 + y**2)
+        h = np.cos(r * 0.5) * 2.5 + 2.5  # ~[0, 5]
+        heights.append(h)
+    return np.array(heights)
+
+# ---------- Plotting ----------
+
+def plot_hex_columns(centers, heights, radius=1.0, cmap="Greys"):
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111, projection="3d")
+
+    heights = np.asarray(heights)
+    norm = (heights - heights.min()) / (np.ptp(heights) + 1e-9)
+    colors = plt.cm.get_cmap(cmap)(norm)
+
+    all_faces = []
+
+    for (cx, cy), h, col in zip(centers, heights, colors):
+        base = hexagon((cx, cy), radius)
+        top = [(x, y, h) for (x, y) in base]
+        base3d = [(x, y, 0) for (x, y) in base]
+
+        # vertical walls
+        for i in range(6):
+            j = (i + 1) % 6
+            face = [base3d[i], base3d[j], top[j], top[i]]
+            all_faces.append((face, col))
+
+        # lid
+        all_faces.append((top, col))
+
+    # sort by projected depth
+    all_faces.sort(key=lambda fc: depth(fc[0], ax))
+
+    for face, col in all_faces:
+        poly = Poly3DCollection([face],
+                                facecolor=col,
+                                edgecolor="black",
+                                linewidth=0.3)
+        ax.add_collection3d(poly)
+
+    ax.set_xlim(min(c[0] for c in centers) - 1, max(c[0] for c in centers) + 1)
+    ax.set_ylim(min(c[1] for c in centers) - 1, max(c[1] for c in centers) + 1)
+    ax.set_zlim(0, max(heights) * 1.1)
+
+    # 60° elev = 30° down from top; 45° azim for nice diagonal
+    ax.view_init(elev=60, azim=45)
+    set_axes_equal(ax)
+    ax.set_axis_off()
+    plt.tight_layout()
+    plt.show()
+
+# ---------- Run it ----------
+
+if __name__ == "__main__":
+    hex_radius = 0.5
+    grid_radius = 8  # → 17 tiles corner-to-corner
+
+    centers = generate_hex_grid(grid_radius, hex_radius)
+    heights = generate_heights(centers)
+
+    plot_hex_columns(centers, heights, radius=hex_radius)

@@ -317,312 +317,158 @@ def clean_raw_list(Heightlist):
 
 def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modulename2, ShapeID, ShapePlot):
 
-    Comments = ''
-    mtype = 'ALL'; #barestage, coldbox, unconstrained, ALL
-    
-    #  1. Retreive Raw Height Data from Excel Files
-    
-    Heightlist = Parse_XLS(selected_file, folder_path)
-    Heightlist2 = Parse_XLS(selected_file2, folder_path)
-    #    fileloco2 = selected_file2;
-        
-    # 2. clean up the lists. (remove lines that are not height measurements)
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    from mpl_toolkits.mplot3d import proj3d
+    from scipy.interpolate import griddata
 
-    exclude_strings = {'#','Glass', 'HB', 'J', 'Top', 'Left', "Bot", "bottom", 'bot', 'Bottom', 'Right', 'FD1', 'FD2', 'FD3', 'FD4', 'FD4rough', 'FD2rough'}
-    Heightlist = clean_raw_list(Heightlist)
+    # ------------------------------------------------------------
+    # 1. Parse and clean your measurement data
+    # ------------------------------------------------------------
+    Heightlist  = Parse_XLS(selected_file,  folder_path)
+    Heightlist2 = Parse_XLS(selected_file2, folder_path)
+
+    Heightlist  = clean_raw_list(Heightlist)
     Heightlist2 = clean_raw_list(Heightlist2)
 
-    # 3. Extract X, Y, and Z vlaues from the cleaned lists and store in new lists.)
+    _, OGHeights,  OGX,  OGY,  OGZ  = turn_list_into_four(Heightlist)
+    _, OGHeights2, OGX2, OGY2, OGZ2 = turn_list_into_four(Heightlist2)
 
-    #Masterlist, Pointslist, Xlist, ylist, zlist = turn_list_into_four(Heightlist)
+    points,  Heights,  X,  Y,  Z  = Translate_Center(ShapeID, OGX,  OGY,  OGZ,  OGHeights)
+    points2, Heights2, X2, Y2, Z2 = Translate_Center(ShapeID, OGX2, OGY2, OGZ2, OGHeights2)
 
-    Cleaned_HeightList, OGHeights, OGHeightsX, OGHeightsY, OGHeightsZ = turn_list_into_four(Heightlist)
-    Cleaned_HeightList2, OGHeights2, OGHeightsX2, OGHeightsY2, OGHeightsZ2 = turn_list_into_four(Heightlist2)
+    # Fit polynomial surface
+    Z  = np.asarray(Z,  dtype=float)
+    Z2 = np.asarray(Z2, dtype=float)
+    X  = np.asarray(X,  dtype=float)
+    Y  = np.asarray(Y,  dtype=float)
+    X2 = np.asarray(X2, dtype=float)
+    Y2 = np.asarray(Y2, dtype=float)
 
-    
+    z_fit, z_fit_2, dz_fit, errors, fit_min, fit_max, C, D = Get_Z_Fit(
+        X, Y, Z, X2, Y2, Z2, points, points2
+    )
 
-
-    points, Heights, HeightsX, HeightsY, HeightsZ = Translate_Center(ShapeID, OGHeightsX, OGHeightsY, OGHeightsZ, OGHeights)
-    points2, Heights2, HeightsX2, HeightsY2, HeightsZ2 = Translate_Center(ShapeID, OGHeightsX2, OGHeightsY2, OGHeightsZ2, OGHeights2)
-
-    X = points[:, 0]
-    Y = points[:, 1]
-    Z = points[:, 2]
-
-    Z2 = points2[:, 2]
-    DX = X; DX2 = X;
-    DY = Y; DY2 = Y;
-    
-    z_fit, z_fit_2, dz_fit, errors, fit_min, fit_max, C, D = Get_Z_Fit(DX, DY, Z, DX2, DY2, Z2, points, points2)
-    
-    errorsMax = round(max(errors),2);
-    total_error = np.sum(np.abs(errors))
-
-
-    #MOVES THESE VARIABLE DEFIITIONS WITH THE REWRITE
-        
-                        ### BOTH ###
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-
-    # Initialize points as an empty 2D array with shape (0, 3)
-    points = np.empty((0, 3))
-
-    # Initialize points as an empty 2D array with shape (0, 3)
-    points2 = np.empty((0, 3))
-
-    xchk = ychk = zchk = False
-    b = 0
-
-
-
+    # ------------------------------------------------------------
+    # 2. Build your meshgrid surface model (your existing logic)
+    # ------------------------------------------------------------
     u, v, fn = Get_Meshgrid(ShapeID)
     r = np.ones(u.shape) * fn
 
-     #Calculate x, y, and z using the meshgrid
-    if ShapeID == 'HDB': 
-        x0 = 5 * (r * np.cos(u + np.pi / 3)) * np.sin(v)
-        y0 = 5 * (r * np.sin(u + np.pi / 3)) * np.sin(v)
+    if ShapeID == 'HDB':
+        x0 = 5 * (r * np.cos(u + np.pi/3)) * np.sin(v)
+        y0 = 5 * (r * np.sin(u + np.pi/3)) * np.sin(v)
         x = y0
-        y = -1*x0
+        y = -x0
     else:
-        x = 5 * (r * np.cos(u + np.pi / 3)) * np.sin(v)
-        y = 5 * (r * np.sin(u + np.pi / 3)) * np.sin(v)
-    
+        x = 5 * (r * np.cos(u + np.pi/3)) * np.sin(v)
+        y = 5 * (r * np.sin(u + np.pi/3)) * np.sin(v)
 
-    if ShapeID == 'HDT':                            ##CHECK THAT THIS WORKS / MAKE IT WORK 
-        x_min, x_max = -1000, -30;
+    # Polynomial surface Z(x,y)
+    Zsurf = (
+        C[0] + C[1]*x + C[2]*y +
+        C[3]*x**2 + C[4]*y**2 + C[5]*x*y +
+        C[6]*x**3 + C[7]*y**3 + C[8]*x**2*y + C[9]*x*y**2
+    )
 
-        # Apply limits using a for loop
-        for i in range(x.shape[0]):
-            for j in range(x.shape[1]):
-                if x[i, j] < x_min or x[i, j] > x_max:
-                    x[i, j] = np.nan  # Set to NaN or any other value to indicate out of bounds
-                    
-                    
+    # ------------------------------------------------------------
+    # 3. Generate hex grid (radius 8 → 17 tiles corner-to-corner)
+    # ------------------------------------------------------------
+    def generate_hex_grid(R, hex_r):
+        centers = []
+        for q in range(-R, R+1):
+            r1 = max(-R, -q - R)
+            r2 = min(R, -q + R)
+            for r in range(r1, r2+1):
+                xh = hex_r * 1.5 * q
+                yh = hex_r * np.sqrt(3) * (r + q/2)
+                centers.append((xh, yh))
+        return centers
 
-    ############### THE FUNCTION ###########################
+    hex_radius = 0.5
+    grid_radius = 8
+    hex_centers = generate_hex_grid(grid_radius, hex_radius)
 
-    min_value = np.nanmin(Z)
-    max_value = np.nanmax(Z)
+    # ------------------------------------------------------------
+    # 4. Sample your fitted surface at hex centers
+    # ------------------------------------------------------------
+    pts = np.column_stack([x.ravel(), y.ravel()])
+    vals = Zsurf.ravel()
+    hex_xy = np.array(hex_centers)
 
-    if np.abs(max_value-min_value) >= 0.3:
-        if Comments: 
-            print(); print("Spread is large, ","DELTA:", (max_value-min_value)); print()
-        
-    
-    if ShapePlot == False:
-        E = C - D
-        Z = (E[0] + E[1] * x + E[2] * y + E[3] * x**2 + E[4] *y**2 + E[5] * x * y + E[6] * x**3 + E[7] * y**3 + E[8] * x**2 * y + E[9] * x * y**2)
-    else:
-        Z = (C[0] + C[1] * x + C[2] * y + C[3] * x**2 + C[4] *y**2 + C[5] * x * y + C[6] * x**3 + C[7] * y**3 + C[8] * x**2 * y + C[9] * x * y**2)
-    
+    heights = griddata(pts, vals, hex_xy, method='linear')
+    heights = np.nan_to_num(heights, nan=np.nanmean(heights))
 
-    Coeficient_Value = np.abs(C[1]) + np.abs(C[2])
+    # ------------------------------------------------------------
+    # 5. Basalt column renderer
+    # ------------------------------------------------------------
+    def hexagon(center, radius=1.0):
+        cx, cy = center
+        ang = np.linspace(0, 2*np.pi, 7)
+        return [(cx + radius*np.cos(a), cy + radius*np.sin(a)) for a in ang]
 
-    dZdX = (C[1]);       dZdY = (C[2]);      dZdX2 = (2*C[3]);      dZdY2 =(2*C[4]);      dZdXdY = (C[5]);
+    def depth(poly, ax):
+        xs, ys, zs = zip(*poly)
+        _, _, zproj = proj3d.proj_transform(xs, ys, zs, ax.get_proj())
+        return np.mean(zproj)
 
-    Curvature = np.abs((dZdY**2)*(dZdX2) - 2*(dZdX)*(dZdY)*(dZdXdY) + (dZdX**2)*(dZdY2))  /  ((dZdX**2 + dZdY**2)**(3/2))
+    def set_axes_equal(ax):
+        xlim = ax.get_xlim3d()
+        ylim = ax.get_ylim3d()
+        zlim = ax.get_zlim3d()
+        ranges = np.array([xlim[1]-xlim[0], ylim[1]-ylim[0], zlim[1]-zlim[0]])
+        centers = np.array([np.mean(xlim), np.mean(ylim), np.mean(zlim)])
+        radius = 0.5 * max(ranges)
+        ax.set_xlim3d([centers[0]-radius, centers[0]+radius])
+        ax.set_ylim3d([centers[1]-radius, centers[1]+radius])
+        ax.set_zlim3d([centers[2]-radius, centers[2]+radius])
 
+    # ------------------------------------------------------------
+    # 6. Render the basalt columns
+    # ------------------------------------------------------------
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111, projection='3d')
 
-    k1 = (dZdX2 + dZdY2 + np.sqrt((dZdX2 - dZdY2)**2 + 4*(dZdXdY)**2))/2
+    norm = (heights - np.min(heights)) / (np.ptp(heights) + 1e-9)
+    colors = plt.cm.Greys(norm)
 
-    k2 = (dZdX2 + dZdY2 - np.sqrt((dZdX2 - dZdY2)**2 + 4*(dZdXdY)**2))/2
+    all_faces = []
 
-    S = (2/np.pi)*np.arctan((k1 + k2)/(k1 - k2))
+    for (cx, cy), h, col in zip(hex_centers, heights, colors):
+        base = hexagon((cx, cy), hex_radius)
+        top  = [(x, y, h) for (x, y) in base]
+        base3d = [(x, y, 0) for (x, y) in base]
 
-    C_1 = ["{:.3f}".format(x) for x in C]
+        # walls
+        for i in range(6):
+            j = (i+1) % 6
+            face = [base3d[i], base3d[j], top[j], top[i]]
+            all_faces.append((face, col))
 
+        # lid
+        all_faces.append((top, col))
 
-    z_0 = Z * 0 +  fit_min*0.99# - HeightsMin;
-    z_E = Z * 0 +  fit_max*1.01
-    
-    #print("-",np.sum(Z), "/" , len(Z)*len(Z[0]), '=', np.sum(Z)/(len(Z)*len(Z[0])));
-    
-    if ShapePlot: 
-        NewAvg = np.sum(Z)/(len(Z)*len(Z[0]))
-        #print(Z)
-        Z = Z - NewAvg;
-        z_0 = Z * 0 + np.min(Z)
-        FitMin = np.min(Z) - 0.1;
-        #print(Z)
-    else: 
-        NewAvg = 0;
-        
-    
-    #print(z_0)
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.axis('off')
-    
-    # Define the min and max values for the color scale
-    #vmin = -0.5
-    #vmax = 0.6
+    # depth sort
+    all_faces.sort(key=lambda fc: depth(fc[0], ax))
 
-    # Plot the surface with a fixed color scale
-    #NORMAILZING IS VERY IMPORTANT 
-    norm = Normalize(vmin=-0.4, vmax=0.4)
-    surf = ax.plot_surface(x, y, Z, cmap=cm.rainbow, norm=norm)
-    
-    ##### cmap=cm.rainbow
-    
-    
-    if ShapeID  == 'HDB':
-        ax.view_init(elev=0, azim=0)
-        ax.set_xlim([-75, 75])
-        ax.set_ylim([-75, 0])
-        ax.set_zlim([-1, 1])
-    else:
-        ax.view_init(elev=0, azim=0)
-        ax.set_xlim([-75, 75])
-        ax.set_ylim([-75, 75])
-        ax.set_zlim([-1, 1])
-    
-    # Adding a colorbar (legend) for the heightmap with consistent scale
-    cbar = fig.colorbar(surf, ax=ax, orientation='vertical')
-    cbar.set_label('Height (mm)')
-    
-    
-    # Add error text below the plot
-    if ShapePlot == False:
-        if mtype == 'barestage':
-            error_message = f"Maximum Error of the (two) Polynomial Fits  +/-{errorsMax}mm "
-        else:
-            error_message = f"Maximum Error Between Measured Difference and Fit +/-{errorsMax}mm "
-    else:
-        error_message = f"Maximum Error Between Measurement and Fit +/-{errorsMax}mm "
-    fig.text(0.5, 0.06, error_message, ha='center', fontsize=8, color='black')
-    
-    
-    dirs = selected_file.replace(".xls","").replace(modulename,"")
+    for face, col in all_faces:
+        poly = Poly3DCollection([face], facecolor=col, edgecolor='black', linewidth=0.3)
+        ax.add_collection3d(poly)
 
-    
-    filename_1 = selected_file;
-    edit1 = filename_1.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\\", "")
-    edit2 = edit1.replace(r"Full", '').replace("\\","").replace("TOP","")
-    main_name = edit2.split()[0]
-    
-    #print("This is main name", main_name)
-    
-    
-    #shortmodulename = modulename[14:]
-    shortmodulenameedit = selected_file.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD ", "").replace(r"Full", '').replace("\\","");
-    shortmodulename = shortmodulenameedit.replace('.xls','').replace(main_name, '')
-    
-    if ShapePlot == False:
-        title = main_name + " Height Movement Plot" ;
-        title2 =  modulename[:16] + " Difference Plot";
-    else: 
-        title = main_name + " Shape Plot " ;
-        title2 = modulename[:16] + " Shape Plot";
-    
-    #print("DEBUGGING:",title, title2)
-    
-    l1 = -0.90;
-    l2 = 0.90;
-    
-    #ax.set_zlim([FitMin - 0.3, FitMax + 2.5])
-    ax.set_zlim([l1, l2])
+    ax.view_init(elev=60, azim=45)
+    set_axes_equal(ax)
+    ax.set_axis_off()
 
-    ax.text(40, 100, fit_min, 'CH8', color='black', fontsize=12, zorder=10)  # Bottom-left corner
-    if ShapeID != 'LD5':
-        ax.text(-50, 100, fit_min, 'CH1', color='black', fontsize=12, zorder=10) 
-
-    ax.set_title(title2, fontsize=14)
-
-    #surf = ax.plot_surface(x, y, Z, cmap=cm.rainbow, norm=norm)
-    shadow = ax.plot_surface(x, y, z_0, color='k', zorder=0)
-            
-
-    if ShapeID == 'HDB':
-        if ShapePlot is False:   
-            print(fit_max, np.nanmean(z_0))
-            print(fit_min, np.nanmean(z_E))
-            cutout = ax.plot_surface(u*12-20, v*80 - 80, z_E+1,
-                                 color='white', shade=False, alpha=1.0, zorder=0)
-            
-        else:    
-            cutout = ax.plot_surface(u*-40, v*60 - 60, z_E,
-                                 color='white', shade=False, alpha=1.0, zorder=0)
-            
-            
-            
-            
-    # Axis limits and view settings
-    if ShapeID == 'LD5':
-        ax.set_xlim([-75, 0])
-        ax.set_ylim([-50, 50])
-    else:
-        ax.set_xlim([-75, 75])
-        ax.set_ylim([-75, 75])
-    
-    l1 = fit_min - 0.3
-    l2 = fit_max + 0.3
-    ax.set_zlim([l1, l2])
-    
-    if ShapeID == 'HDB':
-        ax.view_init(elev=65, azim=0)
-    else:
-        ax.view_init(elev=65, azim=-90)
-
-    # Define hand-placed points
-    #x_points = np.array([0, 2, -3])
-    #y_points = np.array([0, 2, -3])
-    #z_points = np.ones_like(x_points) * 0.3 * 4  # Points at the same height
-    #ax.scatter(x_points, y_points, z_points, color='black')
-    #for i in range(len(x_points)):
-    #    ax.text(x_points[i], y_points[i], z_points[i], f'({x_points[i]}, {y_points[i]}, {z_points[i]})', color='black')
-        
-    """print()
-    print("Current working directory:", os.getcwd())
-    
-    print()
-    print("Folder_Path Check: ", Folder_Path(ShapeID))
-    
-    print()
-    print("Dirs: ", dirs)
-    
-    
-    print("This is suffix:", suffix)"""
-    suffix = dirs.replace(folder_path,'')
-    directory = folder_path
+    # ------------------------------------------------------------
+    # 7. Save output
+    # ------------------------------------------------------------
     cycleF1 = CycleParse(selected_file)
     cycleF2 = CycleParse(selected_file2)
-    if ShapePlot is False:
-        if Comments: print(); print("saving into:", directory , modulename , '_Difference_Plot_Cycle', cycleF1, "Vs", cycleF2, '.png' )
-        filesuffix = modulename + "_" + mtype.replace(" ","_") + '_Difference_Plot_Cycle' + str(cycleF1) + "Vs" + str(cycleF2) + '.png'
-        filename = os.path.join(directory + filesuffix)
-        if os.path.isfile(filename):
-            if Comments: 
-                print("FILE ALREADY PRESENT: replace")
-            filename = filename.replace('.p','_2nd.p')
-        if Comments: 
-            print(); print("saving into:", filename )
-        else: 
-            print ("Difference Plot: ", modulename.replace(' ',''), "::", cycleF1, "-" , cycleF2, mtype )
-        plt.savefig(filename)
-        
-    else:
-        filename = os.path.join(folder_path, modulename.replace(' ','') + suffix + '.png')
-        if os.path.isfile(filename):
-            if Comments: 
-                print("FILE ALREADY PRESENT: replace")
-            filename = filename.replace('.p','_2nd.p')
-        if Comments: 
-            print(); print("saving into:", filename )
-        else: 
-            print ("Shape Plot: ", modulename.replace(' ',''), cycleF1, mtype)
-        plt.savefig(filename)
-    #filenames.append(dirs + '\\GIFS\\tempphotos\\' + str(i) + '.png')
+    outname = f"{modulename}_BasaltPlot_Cycle{cycleF1}_Vs_{cycleF2}.png"
+    outfile = os.path.join(folder_path, outname)
 
-    #print("frame", i)
-    #plt.show();
-    plt.close(fig)  # Clear the current figure
-    if Comments:
-        print(); 
-        print('-----------------    Done   -----------------------');
-        print(); 
-    
-    
+    plt.savefig(outfile, dpi=300)
+    plt.close(fig)
 
-
+    print("Basalt Plot Saved:", outfile)
