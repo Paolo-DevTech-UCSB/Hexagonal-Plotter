@@ -1,16 +1,38 @@
 
 
 from Plotter_Config import Shapes, ProcessTypes, ShapePlotKeys, HeightDiffKeys, LDTopKeys, HDTopKeys, LDBotKeys, LDRightKeys, LDLeftKeys, LDFiveKeys, LDFullKeys, HDFullKeys, HDBottomKeys
-from Plotter_code_2 import Make_Diff_Plot
+from Plotter_code import Make_Diff_Plot
 
 def NewMain():
 
-    ShapeID = 'LDR'; #'LDT''HDT''LDB''LDR''LDL''LD5''LDF''HDF'
+    ShapeID = 'LDR' #'HDF'; #'LDT''HDT''LDB'LDR'LDL''LD5''LDF''HDF'
     ShapePlot = False; #True if we are making a shape plot, false if we are making a height difference plot
-    ModuleName = '320-MLR-3TX-SB0002';
-    File_Name_Final = "MLR3TX-SB0002 After Irradiation Cycle 100 -35.xls"; #insert the file name here. For example, "MLR3TX-SB0002.xls"   Final in Final - Initial
-    File_Name_Initial = 'MLR3TX-SB0002 After Irradiation Cycle 100 RT.xls'; #insert the file name here. For example, "MLR3TX-SB0002.xls"  Initial in Final - Initial
+    ModuleName = 'MLR3TXSB0002 MAY15'
+    FileName = "MLR3TXSB0002 Plot1 50MRad Difference"
 
+
+    #320MLR3TXSB0002
+    a1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Right\MLR3TX-SB0002 After Irradiation Cycle 100 -35.xls"
+    a2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Right\MLR3TX-SB0002 After Irradiation Cycle 100 RT.xls"
+
+    b1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Right\MLR3TX-SB0002 After Irradiation Cycle 1 Coldbox RT.xls"
+    b2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Right\MLR3TX-SB0002 After Irradiation Cycle 100 RT.xls"
+
+    #320MLT3W2NT0058
+
+    #320MLL3W2NT0049
+
+    #320MHB1WXNT0054
+
+    #320MHF1T4SB0016
+
+    #320MHF1T4SB0018
+
+
+
+
+    File_Name_Final = a1
+    File_Name_Initial = a2
     
     if ShapePlot is True: DiffPlot = False
     else: DiffPlot = True;
@@ -51,9 +73,9 @@ def NewMain():
     ModuleName2 = ModuleName
     
     if ShapePlot is True:
-        Make_Diff_Plot(selected_file, selected_file, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot)
+        Make_Diff_Plot(selected_file, selected_file, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot, FileName)
     elif DiffPlot is True:
-        Make_Diff_Plot(selected_file, selected_file2, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot)
+        Make_Diff_Plot(selected_file, selected_file2, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot, FileName)
 
 
 # This code sends (Filename.xls, filename2.xls, path to filename.xls, ModuleName, ModuleName2, ShapeID, Difference or Shape Boolean)

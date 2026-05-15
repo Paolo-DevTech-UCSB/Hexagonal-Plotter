@@ -315,7 +315,7 @@ def clean_raw_list(Heightlist):
     cleaned_list = [array for array in Heightlist if not any(exclude in array[0] for exclude in exclude_strings)]
     return cleaned_list
 
-def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modulename2, ShapeID, ShapePlot):
+def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modulename2, ShapeID, ShapePlot, FileName):
 
     Comments = ''
     mtype = 'ALL'; #barestage, coldbox, unconstrained, ALL
@@ -364,6 +364,7 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
                         ### BOTH ###
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
+
 
     # Initialize points as an empty 2D array with shape (0, 3)
     points = np.empty((0, 3))
@@ -454,6 +455,10 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     ax.axis('off')
+
+
+
+
     
     # Define the min and max values for the color scale
     #vmin = -0.5
@@ -478,10 +483,9 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         ax.set_ylim([-75, 75])
         ax.set_zlim([-1, 1])
     
-    # Adding a colorbar (legend) for the heightmap with consistent scale
-    cbar = fig.colorbar(surf, ax=ax, orientation='vertical')
-    cbar.set_label('Height (mm)')
-    
+
+
+
     
     # Add error text below the plot
     if ShapePlot == False:
@@ -491,7 +495,7 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             error_message = f"Maximum Error Between Measured Difference and Fit +/-{errorsMax}mm "
     else:
         error_message = f"Maximum Error Between Measurement and Fit +/-{errorsMax}mm "
-    fig.text(0.5, 0.06, error_message, ha='center', fontsize=8, color='black')
+    #fig.text(0.5, 0.06, error_message, ha='center', fontsize=8, color='black')
     
     
     dirs = selected_file.replace(".xls","").replace(modulename,"")
@@ -528,7 +532,10 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     if ShapeID != 'LD5':
         ax.text(-50, 100, fit_min, 'CH1', color='black', fontsize=12, zorder=10) 
 
-    ax.set_title(title2, fontsize=14)
+    #ax.set_title(title2, fontsize=14)
+    ax.set_title("")   # Remove title
+    
+
 
     #surf = ax.plot_surface(x, y, Z, cmap=cm.rainbow, norm=norm)
     shadow = ax.plot_surface(x, y, z_0, color='k', zorder=0)
@@ -561,9 +568,101 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     ax.set_zlim([l1, l2])
     
     if ShapeID == 'HDB':
-        ax.view_init(elev=65, azim=0)
+        ax.view_init(elev=90, azim=0)
     else:
-        ax.view_init(elev=65, azim=-90)
+        ax.view_init(elev=90, azim=-90)
+
+    # --- Projected axes overlay (show module dimensions) ---
+    # Compute plot bounds
+    x_min, x_max = ax.get_xlim()
+    y_min, y_max = ax.get_ylim()
+    # Raise axis level above surface so axis and labels appear in front
+    z_axis_level = l2 + 0.08
+
+    # Place axes at the plot bottom and left (L-shaped layout)
+    # X axis runs left->right at the bottom (y = y_min)
+    x_axis_y = y_min
+    x_line_x = np.array([x_min, x_max])
+    x_line_y = np.array([x_axis_y, x_axis_y])
+    x_line_z = np.array([z_axis_level, z_axis_level])
+    ax.plot(x_line_x, x_line_y, x_line_z, color='k', linewidth=2)
+
+    # Y axis runs bottom->top at the left (x = x_min)
+    y_axis_x = x_min
+    y_line_x = np.array([y_axis_x, y_axis_x])
+    y_line_y = np.array([y_min, y_max])
+    y_line_z = np.array([z_axis_level, z_axis_level])
+    ax.plot(y_line_x, y_line_y, y_line_z, color='k', linewidth=2)
+
+    # Map plot units to physical length: X span -> 18.75 cm, Y span -> 16.75 cm
+    plot_span_x = x_max - x_min if (x_max - x_min) != 0 else 1.0
+    plot_span_y = y_max - y_min if (y_max - y_min) != 0 else 1.0
+    cm_per_unit_x = 18.75 / plot_span_x
+    cm_per_unit_y = 16.75 / plot_span_y
+
+    # Add end labels for X axis at bottom-left and bottom-right, placed outside (in Y)
+    outside_y = y_min - 0.08 * plot_span_y
+    # (removed duplicate end labels; ticks will carry numeric labels)
+
+    # Add end labels for Y axis at left-bottom and left-top, placed outside (in X)
+    outside_x = x_min - 0.03 * plot_span_x
+    # (removed duplicate end labels; ticks will carry numeric labels)
+
+    # Add tick marks on X axis (0, 5, 10, 15, 18.75 cm)
+    tick_cms_x = [0.0, 5.0, 10.0, 15.0, 18.75]
+    tick_height = 0.02 * (l2 - l1)
+    label_offset = 0.01 * (l2 - l1)
+    for t in tick_cms_x:
+        # convert cm to plot x coordinate
+        tx = x_min + (t / 18.75) * plot_span_x
+        # draw tick as short vertical line in z
+        tz0 = z_axis_level - tick_height
+        tz1 = z_axis_level
+        ax.plot([tx, tx], [x_axis_y, x_axis_y], [tz0, tz1], color='k', linewidth=1.5)
+        # place numeric label just outside in Y (no unit)
+        ax.text(tx, outside_y, z_axis_level + label_offset, '{:g}'.format(t), color='k', fontsize=9, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+    # Add tick marks on Y axis (0, 4, 8, 12, 16.75 cm)
+    tick_cms_y = [0.0, 4.0, 8.0, 12.0, 16.75]
+    for t in tick_cms_y:
+        ty = y_min + (t / 16.75) * plot_span_y
+        tz0 = z_axis_level - tick_height
+        tz1 = z_axis_level
+        ax.plot([y_axis_x, y_axis_x], [ty, ty], [tz0, tz1], color='k', linewidth=1.5)
+        # place numeric label just outside in X (no unit)
+        ax.text(outside_x, ty, z_axis_level + label_offset, '{:g}'.format(t), color='k', fontsize=9, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+    # Add a single unit label centered along the X axis outside the ticks
+    # Move the unit label further down so it doesn't overlap tick labels
+    # Move the unit label further down (larger offset) so it doesn't overlap any ticks
+    ax.text((x_min + x_max) / 2, outside_y - 0.12 * plot_span_y, z_axis_level + label_offset * 2, '(cm)', color='k', fontsize=10, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+
+    # --- Add colorbar FIRST ---
+    # moved slightly left so it doesn't get cropped by the figure edge
+    cax = fig.add_axes([0.84, 0.15, 0.03, 0.70])
+    cbar = fig.colorbar(surf, cax=cax)
+    cbar.set_label('Height (mm)')
+
+    # --- NOW move subplot (this is the ONLY place it works) ---
+    ax.set_position([0.08, 0.12, 0.75, 0.78])
+
+    # --- Annotation inside subplot ---
+    # Place the small annotation in the figure's top-left corner (figure coordinates)
+    fig.text(
+        0.02, 0.98, "CMS Preliminary\n" + "320-ML-R3TX-SB-0002",
+        transform=fig.transFigure,
+        ha="left", va="top",
+        fontsize=12,
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="black", alpha=0.8)
+    )
+
+    # --- UCSB in top-right of entire figure ---
+    fig.text(
+        0.98, 0.98, "Phase 2",
+        ha="right", va="top",
+        fontsize=16, fontweight="bold"
+    )
 
     # Define hand-placed points
     #x_points = np.array([0, 2, -3])
@@ -588,31 +687,31 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     directory = folder_path
     cycleF1 = CycleParse(selected_file)
     cycleF2 = CycleParse(selected_file2)
+    # Determine save path using FileName passed from controller
+    def _make_save_path(file_name):
+        # If file_name is an absolute path or contains a directory, use it as-is
+        if os.path.isabs(file_name) or os.path.dirname(file_name):
+            base = file_name
+        else:
+            base = os.path.join(folder_path, file_name)
+        # Add .png if missing
+        if not os.path.splitext(base)[1]:
+            base = base + '.png'
+        return base
+
+    save_path = _make_save_path(FileName)
+
     if ShapePlot is False:
-        if Comments: print(); print("saving into:", directory , modulename , '_Difference_Plot_Cycle', cycleF1, "Vs", cycleF2, '.png' )
-        filesuffix = modulename + "_" + mtype.replace(" ","_") + '_Difference_Plot_Cycle' + str(cycleF1) + "Vs" + str(cycleF2) + '.png'
-        filename = os.path.join(directory + filesuffix)
-        if os.path.isfile(filename):
-            if Comments: 
-                print("FILE ALREADY PRESENT: replace")
-            filename = filename.replace('.p','_2nd.p')
-        if Comments: 
-            print(); print("saving into:", filename )
-        else: 
-            print ("Difference Plot: ", modulename.replace(' ',''), "::", cycleF1, "-" , cycleF2, mtype )
-        plt.savefig(filename)
-        
+        if Comments:
+            print(); print("saving into:", directory , modulename , '_Difference_Plot_Cycle', cycleF1, "Vs", cycleF2, '.png' )
+        print ("Difference Plot: ", modulename.replace(' ',''), "::", cycleF1, "-" , cycleF2, mtype )
+        plt.savefig(save_path)
     else:
-        filename = os.path.join(folder_path, modulename.replace(' ','') + suffix + '.png')
-        if os.path.isfile(filename):
-            if Comments: 
-                print("FILE ALREADY PRESENT: replace")
-            filename = filename.replace('.p','_2nd.p')
-        if Comments: 
-            print(); print("saving into:", filename )
-        else: 
+        if Comments:
+            print(); print("saving into:", save_path )
+        else:
             print ("Shape Plot: ", modulename.replace(' ',''), cycleF1, mtype)
-        plt.savefig(filename)
+        plt.savefig(save_path)
     #filenames.append(dirs + '\\GIFS\\tempphotos\\' + str(i) + '.png')
 
     #print("frame", i)
