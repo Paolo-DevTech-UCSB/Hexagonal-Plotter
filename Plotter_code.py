@@ -390,6 +390,7 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     # Use consistent x,y mapping for all shapes (remove HDB-specific swap/rotation)
     x = 5 * (r * np.cos(u + np.pi / 3)) * np.sin(v)
     y = 5 * (r * np.sin(u + np.pi / 3)) * np.sin(v)
+    y = y - 4
     
 
     if ShapeID == 'HDT':                            ##CHECK THAT THIS WORKS / MAKE IT WORK 
@@ -583,8 +584,14 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     plot_span_y = y_max - y_min if (y_max - y_min) != 0 else 1.0
 
     # bounding box rectangle (thin)
+    # shrink vertically (top and bottom) by 10% total (5% each side)
+    span_y = y_max - y_min if (y_max - y_min) != 0 else 0
+    inset_y = 0.05 * span_y
+    rect_bottom = y_min #+ inset_y
+    rect_top = y_max - inset_y
+    box_span_y = rect_top - rect_bottom
     rect_x = [x_min, x_max, x_max, x_min, x_min]
-    rect_y = [y_min, y_min, y_max, y_max, y_min]
+    rect_y = [rect_bottom, rect_bottom, rect_top, rect_top, rect_bottom]
     rect_z = [z_axis_level] * len(rect_x)
     ax.plot(rect_x, rect_y, rect_z, color='k', linewidth=0.8, zorder=6)
 
@@ -594,8 +601,8 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
 
     # Tick placement helpers
     center_x = (x_min + x_max) / 2.0
-    center_y = (y_min + y_max) / 2.0
-    outside_y = y_min - 0.08 * plot_span_y
+    center_y_box = (rect_bottom + rect_top) / 2.0
+    outside_y = rect_bottom - 0.08 * box_span_y
     outside_x = x_min - 0.06 * plot_span_x
     tick_height = 0.02 * (l2 - l1)
     label_offset = 0.01 * (l2 - l1)
@@ -606,17 +613,17 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         tx = center_x + (t / total_cm_x) * plot_span_x
         tz0 = z_axis_level - tick_height
         tz1 = z_axis_level
-        # draw short vertical tick at bottom edge
-        ax.plot([tx, tx], [y_min, y_min], [tz0, tz1], color='k', linewidth=1.2, zorder=6)
+        # draw short vertical tick at bottom edge of the shrunken box
+        ax.plot([tx, tx], [rect_bottom, rect_bottom], [tz0, tz1], color='k', linewidth=1.2, zorder=6)
         ax.text(tx, outside_y, z_axis_level + label_offset, '{:.2f}'.format(t).rstrip('0').rstrip('.'), color='k', fontsize=9, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
 
     # Y ticks (left side) symmetric around 0: from -total_cm_y/2 to +total_cm_y/2
     tick_cms_y = [-total_cm_y/2.0, -4.0, 0.0, 4.0, total_cm_y/2.0]
     for t in tick_cms_y:
-        ty = center_y + (t / total_cm_y) * plot_span_y
+        ty = center_y_box + (t / total_cm_y) * box_span_y
         tz0 = z_axis_level - tick_height
         tz1 = z_axis_level
-        # draw short horizontal tick at left edge (as tiny segment in x)
+        # draw short horizontal tick at left edge of the shrunken box
         ax.plot([x_min, x_min], [ty, ty], [tz0, tz1], color='k', linewidth=1.2, zorder=6)
         ax.text(outside_x, ty, z_axis_level + label_offset, '{:.2f}'.format(t).rstrip('0').rstrip('.'), color='k', fontsize=9, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
 
@@ -638,27 +645,50 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         dx_data = 0
         dy_data = 0
 
-    ax.text(center_x, outside_y - 0.12 * plot_span_y + dy_data, z_axis_level + label_offset * 2, 'X (cm)', color='k', fontsize=10, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
-    ax.text(outside_x - 0.02 * plot_span_x + dx_data, center_y, z_axis_level + label_offset * 2, 'Y (cm)', color='k', fontsize=10, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
+    ax.text(center_x, outside_y - 0.12 * box_span_y + dy_data, z_axis_level + label_offset * 2, 'X (cm)', color='k', fontsize=10, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
+    ax.text(outside_x - 0.02 * plot_span_x + dx_data, center_y_box, z_axis_level + label_offset * 2, 'Y (cm)', color='k', fontsize=10, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
 
 
     # --- Add colorbar FIRST ---
-    # moved slightly left so it doesn't get cropped by the figure edge
-    cax = fig.add_axes([0.84, 0.15, 0.03, 0.70])
+    # compute figure-based pixel shifts and apply: move everything except
+    # CMS and Phase 2 by 20 px to the right; move CMS by 70 px right separately
+    try:
+        fig_w, fig_h = fig.get_size_inches()
+        dpi = fig.dpi
+        px_to_fig = 1.0 / (fig_w * dpi) if (fig_w * dpi) != 0 else 0
+        # 20 px global shift for everything except CMS and Phase 2
+        delta_fig_20 = 20.0 * px_to_fig
+        # CMS shift of 70 px (figure coords)
+        cms_base_x = 0.15
+        cms_shift_fig = 70.0 * px_to_fig
+        cms_x_final = cms_base_x + cms_shift_fig
+    except Exception:
+        delta_fig_20 = 0.0
+        cms_x_final = 0.15
+
+    # colorbar position (shifted with the rest)
+    cax_x = 0.84 + delta_fig_20
+    cax = fig.add_axes([cax_x, 0.15, 0.03, 0.70])
     cbar = fig.colorbar(surf, cax=cax)
     cbar.set_label('Height (mm)')
 
     # --- NOW move subplot (this is the ONLY place it works) ---
-    # Shift the axes slightly to the right while keeping the right edge fixed
-    ax.set_position([-0.05, -0.10, 1.15, 1.20])
+    # base axes position (previously set) with global 20px shift applied
+    base_ax_pos = [-0.05, -0.10, 1.15, 1.20]
+    try:
+        ax_pos = list(base_ax_pos)
+        ax_pos[0] = ax_pos[0] + delta_fig_20
+        ax.set_position(ax_pos)
+    except Exception:
+        ax.set_position(base_ax_pos)
 
     # --- Top-line annotations: Phase and CMS Preliminary on same baseline ---
-    # Phase 2 at top-right
-    fig.text(0.98, 0.98, "Phase 2", ha="right", va="top", fontsize=16, fontweight="bold")
+    # Phase 2 at top-right (do NOT shift this one)
+    fig.text(0.98, 0.90, "Phase 2", ha="right", va="top", fontsize=16, fontweight="bold")
 
     # CMS (bold) and Preliminary (normal) at the top-left corner
-    # moved right to remain aligned with the shifted axes
-    fig.text(0.15, 0.988, r"$\mathbf{CMS}$ Preliminary", ha="left", va="top", fontsize=16)
+    # moved right by 70 px (cms_x_final) and NOT subject to the global 20px shift
+    fig.text(cms_x_final + 0.02, 0.908, r"$\mathbf{CMS}$ Preliminary", ha="left", va="top", fontsize=16)
 
     # Serial number slightly lower and smaller than the line above (moved further down)
     # updated x for alignment (currently commented)
@@ -699,29 +729,34 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             base = base + '.png'
         return base
 
-    def _crop_left_pixels(image_path, pixels=80):
+    def _crop_left_top_pixels(image_path, left_pixels=80, top_pixels=80):
         try:
             from PIL import Image
         except Exception:
-            # Pillow not available; skip cropping but notify
             try:
                 print("Pillow not installed; skipping image crop for:", image_path)
             except Exception:
                 pass
             return
+
         try:
             im = Image.open(image_path)
             w, h = im.size
-            if pixels >= w:
-                # nothing to do
-                return
-            im_cropped = im.crop((pixels, 0, w, h))
+
+            # Safety clamps
+            left = min(left_pixels, w - 1)
+            top = min(top_pixels, h - 1)
+
+            # Crop box: (left, top, right, bottom)
+            im_cropped = im.crop((left, top, w, h))
             im_cropped.save(image_path)
+
         except Exception as e:
             try:
                 print(f"Error cropping image {image_path}: {e}")
             except Exception:
                 pass
+
 
     save_path = _make_save_path(FileName)
 
@@ -731,7 +766,7 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         print ("Difference Plot: ", modulename.replace(' ',''), "::", cycleF1, "-" , cycleF2, mtype )
         plt.savefig(save_path)
         # Crop left 80 pixels from saved image to remove left-edge overflow
-        _crop_left_pixels(save_path, pixels=80)
+        _crop_left_top_pixels(save_path, left_pixels=105, top_pixels=40)
     else:
         if Comments:
             print(); print("saving into:", save_path )
@@ -739,7 +774,7 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             print ("Shape Plot: ", modulename.replace(' ',''), cycleF1, mtype)
         plt.savefig(save_path)
         # Crop left 80 pixels from saved image to remove left-edge overflow
-        _crop_left_pixels(save_path, pixels=80)
+        _crop_left_top_pixels(save_path, left_pixels=105, top_pixels=40)
     #filenames.append(dirs + '\\GIFS\\tempphotos\\' + str(i) + '.png')
 
     #print("frame", i)
