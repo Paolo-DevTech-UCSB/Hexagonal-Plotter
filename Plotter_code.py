@@ -13,7 +13,12 @@ a = 2.0
 
 def Parse_XLS(selected_file, filepath):
     fileloco = selected_file;
-    df = pd.read_excel(filepath + fileloco)
+    if os.path.isabs(fileloco):
+        fullpath = fileloco
+    else:
+        fullpath = os.path.join(filepath, fileloco)
+
+    df = pd.read_excel(fullpath)
     my_array = df.values
     newlist = [];
 
@@ -325,7 +330,8 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     Heightlist = Parse_XLS(selected_file, folder_path)
     Heightlist2 = Parse_XLS(selected_file2, folder_path)
     #    fileloco2 = selected_file2;
-        
+    print("Heightlist2:", Heightlist2)
+    print("Length:", len(Heightlist2))
     # 2. clean up the lists. (remove lines that are not height measurements)
 
     exclude_strings = {'#','Glass', 'HB', 'J', 'Top', 'Left', "Bot", "bottom", 'bot', 'Bottom', 'Right', 'FD1', 'FD2', 'FD3', 'FD4', 'FD4rough', 'FD2rough'}
@@ -381,14 +387,9 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     r = np.ones(u.shape) * fn
 
      #Calculate x, y, and z using the meshgrid
-    if ShapeID == 'HDB': 
-        x0 = 5 * (r * np.cos(u + np.pi / 3)) * np.sin(v)
-        y0 = 5 * (r * np.sin(u + np.pi / 3)) * np.sin(v)
-        x = y0
-        y = -1*x0
-    else:
-        x = 5 * (r * np.cos(u + np.pi / 3)) * np.sin(v)
-        y = 5 * (r * np.sin(u + np.pi / 3)) * np.sin(v)
+    # Use consistent x,y mapping for all shapes (remove HDB-specific swap/rotation)
+    x = 5 * (r * np.cos(u + np.pi / 3)) * np.sin(v)
+    y = 5 * (r * np.sin(u + np.pi / 3)) * np.sin(v)
     
 
     if ShapeID == 'HDT':                            ##CHECK THAT THIS WORKS / MAKE IT WORK 
@@ -472,16 +473,8 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     ##### cmap=cm.rainbow
     
     
-    if ShapeID  == 'HDB':
-        ax.view_init(elev=0, azim=0)
-        ax.set_xlim([-75, 75])
-        ax.set_ylim([-75, 0])
-        ax.set_zlim([-1, 1])
-    else:
-        ax.view_init(elev=0, azim=0)
-        ax.set_xlim([-75, 75])
-        ax.set_ylim([-75, 75])
-        ax.set_zlim([-1, 1])
+    # shrink plot extents slightly for LDT (15% smaller)
+    shrink_scale = 1.2 if ShapeID == 'LDT' else 1.2
     
 
 
@@ -528,9 +521,7 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     #ax.set_zlim([FitMin - 0.3, FitMax + 2.5])
     ax.set_zlim([l1, l2])
 
-    ax.text(40, 100, fit_min, 'CH8', color='black', fontsize=12, zorder=10)  # Bottom-left corner
-    if ShapeID != 'LD5':
-        ax.text(-50, 100, fit_min, 'CH1', color='black', fontsize=12, zorder=10) 
+    # CH8 and CH1 labels removed (not needed)
 
     #ax.set_title(title2, fontsize=14)
     ax.set_title("")   # Remove title
@@ -542,100 +533,113 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             
 
     if ShapeID == 'HDB':
-        if ShapePlot is False:   
-            print(fit_max, np.nanmean(z_0))
-            print(fit_min, np.nanmean(z_E))
-            cutout = ax.plot_surface(u*12-20, v*80 - 80, z_E+1,
-                                 color='white', shade=False, alpha=1.0, zorder=0)
-            
-        else:    
-            cutout = ax.plot_surface(u*-40, v*60 - 60, z_E,
-                                 color='white', shade=False, alpha=1.0, zorder=0)
-            
+        # previous cutout moved later; keep placeholder for shape-specific logic
+        pass
             
             
             
     # Axis limits and view settings
     if ShapeID == 'LD5':
-        ax.set_xlim([-75, 0])
-        ax.set_ylim([-50, 50])
+        ax.set_xlim([-75 * shrink_scale, 0 * shrink_scale])
+        ax.set_ylim([-50 * shrink_scale, 50 * shrink_scale])
     else:
-        ax.set_xlim([-75, 75])
-        ax.set_ylim([-75, 75])
+        ax.set_xlim([-75 * shrink_scale, 75 * shrink_scale])
+        ax.set_ylim([-75 * shrink_scale, 75 * shrink_scale])
     
     l1 = fit_min - 0.3
     l2 = fit_max + 0.3
     ax.set_zlim([l1, l2])
-    
+
+    # If HDB, add a rectangular white cutout covering the bottom portion vertically
     if ShapeID == 'HDB':
-        ax.view_init(elev=90, azim=0)
-    else:
-        ax.view_init(elev=90, azim=-90)
+        # get current plot bounds
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+        span_x = x_max - x_min if (x_max - x_min) != 0 else 1.0
+        span_y = y_max - y_min if (y_max - y_min) != 0 else 1.0
+        # compute vertical region: top 5/9ths of the module (moved up 1/9th)
+        y_cut_bottom = y_min + (5.0/9.0) * span_y
+        # shrink horizontally slightly so it doesn't cover axis labels
+        x_margin = 0.02 * span_x
+        Xc = np.array([[x_min + x_margin, x_max - x_margin], [x_min + x_margin, x_max - x_margin]])
+        Yc = np.array([[y_cut_bottom, y_cut_bottom], [y_max - 0.02 * span_y, y_max - 0.02 * span_y]])
+        # place patch slightly below top so it doesn't occlude any top-line annotations
+        Zc = np.ones_like(Xc) * (l2 - 0.01 * (l2 - l1))
+        ax.plot_surface(Xc, Yc, Zc, color='white', shade=False, alpha=1.0, zorder=1)
+
+    # Use a top-down camera as requested
+    ax.view_init(elev=90, azim=-90)
 
     # --- Projected axes overlay (show module dimensions) ---
     # Compute plot bounds
     x_min, x_max = ax.get_xlim()
     y_min, y_max = ax.get_ylim()
-    # Raise axis level above surface so axis and labels appear in front
-    z_axis_level = l2 + 0.08
+    # Place axis near the module base so it bounds the module (slightly above the minimum)
+    z_axis_level = l1 + 0.01 * (l2 - l1)
 
-    # Place axes at the plot bottom and left (L-shaped layout)
-    # X axis runs left->right at the bottom (y = y_min)
-    x_axis_y = y_min
-    x_line_x = np.array([x_min, x_max])
-    x_line_y = np.array([x_axis_y, x_axis_y])
-    x_line_z = np.array([z_axis_level, z_axis_level])
-    ax.plot(x_line_x, x_line_y, x_line_z, color='k', linewidth=2)
-
-    # Y axis runs bottom->top at the left (x = x_min)
-    y_axis_x = x_min
-    y_line_x = np.array([y_axis_x, y_axis_x])
-    y_line_y = np.array([y_min, y_max])
-    y_line_z = np.array([z_axis_level, z_axis_level])
-    ax.plot(y_line_x, y_line_y, y_line_z, color='k', linewidth=2)
-
-    # Map plot units to physical length: X span -> 18.75 cm, Y span -> 16.75 cm
+    # Replace L-shaped axes with a thin rectangular bounding box
+    # and add tick marks on the bottom (X) and left (Y) sides.
     plot_span_x = x_max - x_min if (x_max - x_min) != 0 else 1.0
     plot_span_y = y_max - y_min if (y_max - y_min) != 0 else 1.0
-    cm_per_unit_x = 18.75 / plot_span_x
-    cm_per_unit_y = 16.75 / plot_span_y
 
-    # Add end labels for X axis at bottom-left and bottom-right, placed outside (in Y)
+    # bounding box rectangle (thin)
+    rect_x = [x_min, x_max, x_max, x_min, x_min]
+    rect_y = [y_min, y_min, y_max, y_max, y_min]
+    rect_z = [z_axis_level] * len(rect_x)
+    ax.plot(rect_x, rect_y, rect_z, color='k', linewidth=0.8, zorder=6)
+
+    # Use symmetric physical ranges centered at zero
+    total_cm_x = 18.7
+    total_cm_y = 16.75
+
+    # Tick placement helpers
+    center_x = (x_min + x_max) / 2.0
+    center_y = (y_min + y_max) / 2.0
     outside_y = y_min - 0.08 * plot_span_y
-    # (removed duplicate end labels; ticks will carry numeric labels)
-
-    # Add end labels for Y axis at left-bottom and left-top, placed outside (in X)
-    outside_x = x_min - 0.03 * plot_span_x
-    # (removed duplicate end labels; ticks will carry numeric labels)
-
-    # Add tick marks on X axis (0, 5, 10, 15, 18.75 cm)
-    tick_cms_x = [0.0, 5.0, 10.0, 15.0, 18.75]
+    outside_x = x_min - 0.06 * plot_span_x
     tick_height = 0.02 * (l2 - l1)
     label_offset = 0.01 * (l2 - l1)
+
+    # X ticks (bottom side) symmetric around 0: from -total_cm_x/2 to +total_cm_x/2
+    tick_cms_x = [-total_cm_x/2.0, -5.0, 0.0, 5.0, total_cm_x/2.0]
     for t in tick_cms_x:
-        # convert cm to plot x coordinate
-        tx = x_min + (t / 18.75) * plot_span_x
-        # draw tick as short vertical line in z
+        tx = center_x + (t / total_cm_x) * plot_span_x
         tz0 = z_axis_level - tick_height
         tz1 = z_axis_level
-        ax.plot([tx, tx], [x_axis_y, x_axis_y], [tz0, tz1], color='k', linewidth=1.5)
-        # place numeric label just outside in Y (no unit)
-        ax.text(tx, outside_y, z_axis_level + label_offset, '{:g}'.format(t), color='k', fontsize=9, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+        # draw short vertical tick at bottom edge
+        ax.plot([tx, tx], [y_min, y_min], [tz0, tz1], color='k', linewidth=1.2, zorder=6)
+        ax.text(tx, outside_y, z_axis_level + label_offset, '{:.2f}'.format(t).rstrip('0').rstrip('.'), color='k', fontsize=9, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
 
-    # Add tick marks on Y axis (0, 4, 8, 12, 16.75 cm)
-    tick_cms_y = [0.0, 4.0, 8.0, 12.0, 16.75]
+    # Y ticks (left side) symmetric around 0: from -total_cm_y/2 to +total_cm_y/2
+    tick_cms_y = [-total_cm_y/2.0, -4.0, 0.0, 4.0, total_cm_y/2.0]
     for t in tick_cms_y:
-        ty = y_min + (t / 16.75) * plot_span_y
+        ty = center_y + (t / total_cm_y) * plot_span_y
         tz0 = z_axis_level - tick_height
         tz1 = z_axis_level
-        ax.plot([y_axis_x, y_axis_x], [ty, ty], [tz0, tz1], color='k', linewidth=1.5)
-        # place numeric label just outside in X (no unit)
-        ax.text(outside_x, ty, z_axis_level + label_offset, '{:g}'.format(t), color='k', fontsize=9, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+        # draw short horizontal tick at left edge (as tiny segment in x)
+        ax.plot([x_min, x_min], [ty, ty], [tz0, tz1], color='k', linewidth=1.2, zorder=6)
+        ax.text(outside_x, ty, z_axis_level + label_offset, '{:.2f}'.format(t).rstrip('0').rstrip('.'), color='k', fontsize=9, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
 
-    # Add a single unit label centered along the X axis outside the ticks
-    # Move the unit label further down so it doesn't overlap tick labels
-    # Move the unit label further down (larger offset) so it doesn't overlap any ticks
-    ax.text((x_min + x_max) / 2, outside_y - 0.12 * plot_span_y, z_axis_level + label_offset * 2, '(cm)', color='k', fontsize=10, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+    # Axis unit labels
+    # Convert small pixel nudges into data-coordinate offsets so the adjustments
+    # are exact regardless of figure/axis size.
+    try:
+        bbox = ax.get_position()
+        fig_w, fig_h = fig.get_size_inches()
+        dpi = fig.dpi
+        ax_width_px = fig_w * dpi * bbox.width
+        ax_height_px = fig_h * dpi * bbox.height
+        # requested nudges: Y label left by 5 px, X label up by 20 px
+        y_label_dx_px = -5.0
+        x_label_dy_px = 20.0
+        dx_data = (y_label_dx_px * plot_span_x) / ax_width_px if ax_width_px != 0 else 0
+        dy_data = (x_label_dy_px * plot_span_y) / ax_height_px if ax_height_px != 0 else 0
+    except Exception:
+        dx_data = 0
+        dy_data = 0
+
+    ax.text(center_x, outside_y - 0.12 * plot_span_y + dy_data, z_axis_level + label_offset * 2, 'X (cm)', color='k', fontsize=10, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
+    ax.text(outside_x - 0.02 * plot_span_x + dx_data, center_y, z_axis_level + label_offset * 2, 'Y (cm)', color='k', fontsize=10, ha='right', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=7)
 
 
     # --- Add colorbar FIRST ---
@@ -645,24 +649,20 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     cbar.set_label('Height (mm)')
 
     # --- NOW move subplot (this is the ONLY place it works) ---
-    ax.set_position([0.08, 0.12, 0.75, 0.78])
+    # Shift the axes slightly to the right while keeping the right edge fixed
+    ax.set_position([-0.05, -0.10, 1.15, 1.20])
 
-    # --- Annotation inside subplot ---
-    # Place the small annotation in the figure's top-left corner (figure coordinates)
-    fig.text(
-        0.02, 0.98, "CMS Preliminary\n" + "320-ML-R3TX-SB-0002",
-        transform=fig.transFigure,
-        ha="left", va="top",
-        fontsize=12,
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="black", alpha=0.8)
-    )
+    # --- Top-line annotations: Phase and CMS Preliminary on same baseline ---
+    # Phase 2 at top-right
+    fig.text(0.98, 0.98, "Phase 2", ha="right", va="top", fontsize=16, fontweight="bold")
 
-    # --- UCSB in top-right of entire figure ---
-    fig.text(
-        0.98, 0.98, "Phase 2",
-        ha="right", va="top",
-        fontsize=16, fontweight="bold"
-    )
+    # CMS (bold) and Preliminary (normal) at the top-left corner
+    # moved right to remain aligned with the shifted axes
+    fig.text(0.15, 0.988, r"$\mathbf{CMS}$ Preliminary", ha="left", va="top", fontsize=16)
+
+    # Serial number slightly lower and smaller than the line above (moved further down)
+    # updated x for alignment (currently commented)
+    #fig.text(0.07, 0.90, "320-ML-R3TX-SB-0002", ha="left", va="top", fontsize=10, alpha=0.9)
 
     # Define hand-placed points
     #x_points = np.array([0, 2, -3])
@@ -699,6 +699,30 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             base = base + '.png'
         return base
 
+    def _crop_left_pixels(image_path, pixels=80):
+        try:
+            from PIL import Image
+        except Exception:
+            # Pillow not available; skip cropping but notify
+            try:
+                print("Pillow not installed; skipping image crop for:", image_path)
+            except Exception:
+                pass
+            return
+        try:
+            im = Image.open(image_path)
+            w, h = im.size
+            if pixels >= w:
+                # nothing to do
+                return
+            im_cropped = im.crop((pixels, 0, w, h))
+            im_cropped.save(image_path)
+        except Exception as e:
+            try:
+                print(f"Error cropping image {image_path}: {e}")
+            except Exception:
+                pass
+
     save_path = _make_save_path(FileName)
 
     if ShapePlot is False:
@@ -706,12 +730,16 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             print(); print("saving into:", directory , modulename , '_Difference_Plot_Cycle', cycleF1, "Vs", cycleF2, '.png' )
         print ("Difference Plot: ", modulename.replace(' ',''), "::", cycleF1, "-" , cycleF2, mtype )
         plt.savefig(save_path)
+        # Crop left 80 pixels from saved image to remove left-edge overflow
+        _crop_left_pixels(save_path, pixels=80)
     else:
         if Comments:
             print(); print("saving into:", save_path )
         else:
             print ("Shape Plot: ", modulename.replace(' ',''), cycleF1, mtype)
         plt.savefig(save_path)
+        # Crop left 80 pixels from saved image to remove left-edge overflow
+        _crop_left_pixels(save_path, pixels=80)
     #filenames.append(dirs + '\\GIFS\\tempphotos\\' + str(i) + '.png')
 
     #print("frame", i)

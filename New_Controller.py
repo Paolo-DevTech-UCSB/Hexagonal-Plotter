@@ -5,10 +5,11 @@ from Plotter_code import Make_Diff_Plot
 
 def NewMain():
 
-    ShapeID = 'LDR' #'HDF'; #'LDT''HDT''LDB'LDR'LDL''LD5''LDF''HDF'
+    ShapeID = 'HDF' #'HDF'; #'LDT''HDT''LDB'LDR'LDL''LD5''LDF''HDF'
     ShapePlot = False; #True if we are making a shape plot, false if we are making a height difference plot
-    ModuleName = 'MLR3TXSB0002 MAY15'
-    FileName = "MLR3TXSB0002 Plot1 50MRad Difference"
+    ModuleName = '320MHF1T4SB0018'
+    FileName = "320MHF1T4SB0018 50MRad C0VsC30 Difference"
+    #ColdVsRT  C0VsC30
 
 
     #320MLR3TXSB0002
@@ -19,20 +20,44 @@ def NewMain():
     b2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Right\MLR3TX-SB0002 After Irradiation Cycle 100 RT.xls"
 
     #320MLT3W2NT0058
+    c1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Top\320MLT3W2NT0058 Coldbox -35 Cycle 30.xls"
+    c2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Top\320MLT3W2NT0058 Coldbox RT Cycle 30.xls"
+    c3 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Top\320MLT3W2NT0058 Coldbox -25 Cycle 10.xls"
+    c4 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Top\320MLT3W2NT0058 Coldbox RT Cycle 10.xls"
+
+    d1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Top\320MLT3W2NT0058 Coldbox RT.xls"
+    d2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Top\320MLT3W2NT0058 Coldbox RT Cycle 30.xls"
 
     #320MLL3W2NT0049
+    e1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Left\320MLL3W2NT00049 Coldbox -25 Cycle 30.xls"
+    e2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Left\320MLL3W2NT00049 Coldbox RT Cycle 30.xls"
 
+    f1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Left\320MLL3W2NT00049 Coldbox RT Cycle 0.xls"
+    f2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\LD Left\320MLL3W2NT00049 Coldbox RT Cycle 30.xls"
     #320MHB1WXNT0054
+    g1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD Bottom\320MHB1WXNT00054 Coldbox RT Cycle 30.xls"
+    g2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD Bottom\320MHB1WXNT00054 Coldbox -30 Cycle 30.xls"
 
+    h1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD Bottom\320HB1WXNT0054 Coldbox RT Cycle 0.xls"
+    h2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD Bottom\320MHB1WXNT00054 Coldbox RT Cycle 30.xls"
     #320MHF1T4SB0016
+    I1= r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0016 Coldbox -25 Cycle 100.xls"
+    I2= r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0016 Coldbox RT Cycle 100.xls"
 
+    J1= r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0016 In Coldbox RT Cycle 0.xls"
+    J2= r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0016 Coldbox RT Cycle 100.xls"
     #320MHF1T4SB0018
+    k1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0018 In Coldbox -25C Cycle 100.xls"
+    k2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0018 In Coldbox RT Cycle 100.xls"
+
+    L1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0018 Coldbox RT Cycle 0.xls"
+    L2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF1T4SB0018 In Coldbox RT Cycle 100.xls"
 
 
 
 
-    File_Name_Final = a1
-    File_Name_Initial = a2
+    File_Name_Final = L2
+    File_Name_Initial = L1
     
     if ShapePlot is True: DiffPlot = False
     else: DiffPlot = True;
