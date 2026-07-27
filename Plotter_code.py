@@ -82,6 +82,8 @@ def Parse_XLS(selected_file, filepath):
     return Heightlist
 
 def CycleParse(loco):
+    if not isinstance(loco, str):
+        return 0
     if '100' in loco[-12:]: cycle = 100
     elif '50' in loco[-12:]: cycle = 50
     elif '30' in loco[-12:]: cycle = 30
@@ -89,6 +91,48 @@ def CycleParse(loco):
     elif '5' in loco[-12:]: cycle = 5
     else: cycle = 0
     return cycle
+
+
+def _convert_raw_pg_row_to_heightlist(pg_row):
+    x_points = pg_row.get('x_points')
+    y_points = pg_row.get('y_points')
+    z_points = pg_row.get('z_points')
+
+    if x_points is None or y_points is None or z_points is None:
+        raise TypeError("PG data must contain x_points, y_points, and z_points")
+
+    heightlist = []
+    for i, (x, y, z) in enumerate(zip(x_points, y_points, z_points), start=1):
+        flatname = f'flatness{i}'
+        heightlist.append([flatname, 'X', str(x), flatname])
+        heightlist.append(['', 'Y', str(y), ''])
+        heightlist.append(['', 'Z', str(z), ''])
+    return heightlist
+
+
+def _load_heightlist_source(source, folder_path):
+    if source is None:
+        return []
+    if isinstance(source, dict):
+        if 'Heightlist2' in source:
+            return source['Heightlist2']
+        if 'heightlist' in source:
+            return source['heightlist']
+        return _convert_raw_pg_row_to_heightlist(source)
+    if isinstance(source, list):
+        return source
+    if isinstance(source, str):
+        return Parse_XLS(source, folder_path)
+    raise TypeError('Unsupported heightlist source type')
+
+
+def _source_display_name(source, default_name):
+    if isinstance(source, str):
+        return source
+    if isinstance(source, dict):
+        return source.get('module_name', source.get('proto_name', default_name))
+    return default_name
+
 
 def Get_Meshgrid(ShapeID):
     if ShapeID == 'LDF' or ShapeID == 'HDF' or ShapeID == 'LD5':
@@ -320,16 +364,60 @@ def clean_raw_list(Heightlist):
     cleaned_list = [array for array in Heightlist if not any(exclude in array[0] for exclude in exclude_strings)]
     return cleaned_list
 
+
+def _convert_raw_pg_row_to_heightlist(pg_row):
+    x_points = pg_row.get('x_points')
+    y_points = pg_row.get('y_points')
+    z_points = pg_row.get('z_points')
+
+    if x_points is None or y_points is None or z_points is None:
+        raise TypeError("PG data must contain x_points, y_points, and z_points")
+
+    heightlist = []
+    for i, (x, y, z) in enumerate(zip(x_points, y_points, z_points), start=1):
+        flatname = f'flatness{i}'
+        heightlist.append([flatname, 'X', str(x), flatname])
+        heightlist.append(['', 'Y', str(y), ''])
+        heightlist.append(['', 'Z', str(z), ''])
+    return heightlist
+
+
+def _load_heightlist_source(source, folder_path):
+    if source is None:
+        return []
+    if isinstance(source, dict):
+        if 'Heightlist2' in source:
+            return source['Heightlist2']
+        if 'heightlist' in source:
+            return source['heightlist']
+        return _convert_raw_pg_row_to_heightlist(source)
+    if isinstance(source, list):
+        return source
+    if isinstance(source, str):
+        return Parse_XLS(source, folder_path)
+    raise TypeError('Unsupported heightlist source type')
+
+
+def _source_display_name(source, default_name):
+    if isinstance(source, str):
+        return source
+    if isinstance(source, dict):
+        return source.get('module_name', source.get('proto_name', default_name))
+    return default_name
+
+
 def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modulename2, ShapeID, ShapePlot, FileName):
 
     Comments = ''
     mtype = 'ALL'; #barestage, coldbox, unconstrained, ALL
     
-    #  1. Retreive Raw Height Data from Excel Files
+    source_name1 = _source_display_name(selected_file, modulename)
+    source_name2 = _source_display_name(selected_file2, modulename2)
+
+    #  1. Retrieve Raw Height Data from either PG outputs or Excel paths
     
-    Heightlist = Parse_XLS(selected_file, folder_path)
-    Heightlist2 = Parse_XLS(selected_file2, folder_path)
-    #    fileloco2 = selected_file2;
+    Heightlist = _load_heightlist_source(selected_file, folder_path)
+    Heightlist2 = _load_heightlist_source(selected_file2, folder_path)
     print("Heightlist2:", Heightlist2)
     print("Length:", len(Heightlist2))
     # 2. clean up the lists. (remove lines that are not height measurements)
@@ -492,19 +580,19 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     #fig.text(0.5, 0.06, error_message, ha='center', fontsize=8, color='black')
     
     
-    dirs = selected_file.replace(".xls","").replace(modulename,"")
+    dirs = source_name1.replace(".xls", "").replace(modulename, "")
 
     
-    filename_1 = selected_file;
+    filename_1 = source_name1
     edit1 = filename_1.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\\", "")
-    edit2 = edit1.replace(r"Full", '').replace("\\","").replace("TOP","")
-    main_name = edit2.split()[0]
+    edit2 = edit1.replace(r"Full", '').replace("\\", "").replace("TOP", "")
+    main_name = edit2.split()[0] if edit2.split() else modulename
     
     #print("This is main name", main_name)
     
     
     #shortmodulename = modulename[14:]
-    shortmodulenameedit = selected_file.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD ", "").replace(r"Full", '').replace("\\","");
+    shortmodulenameedit = source_name1.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD ", "").replace(r"Full", '').replace("\\", "")
     shortmodulename = shortmodulenameedit.replace('.xls','').replace(main_name, '')
     
     if ShapePlot == False:
@@ -713,10 +801,10 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     
     
     print("This is suffix:", suffix)"""
-    suffix = dirs.replace(folder_path,'')
+    suffix = dirs.replace(folder_path, '')
     directory = folder_path
-    cycleF1 = CycleParse(selected_file)
-    cycleF2 = CycleParse(selected_file2)
+    cycleF1 = CycleParse(source_name1)
+    cycleF2 = CycleParse(source_name2)
     # Determine save path using FileName passed from controller
     def _make_save_path(file_name):
         # If file_name is an absolute path or contains a directory, use it as-is

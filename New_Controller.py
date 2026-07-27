@@ -1,15 +1,66 @@
 
 
-from Plotter_Config import Shapes, ProcessTypes, ShapePlotKeys, HeightDiffKeys, LDTopKeys, HDTopKeys, LDBotKeys, LDRightKeys, LDLeftKeys, LDFiveKeys, LDFullKeys, HDFullKeys, HDBottomKeys
-from Plotter_code import Make_Diff_Plot
+#from plotter_code_clean import Shapes, ProcessTypes, ShapePlotKeys, HeightDiffKeys, LDTopKeys, HDTopKeys, LDBotKeys, LDRightKeys, LDLeftKeys, LDFiveKeys, LDFullKeys, HDFullKeys, HDBottomKeys
+from plotter_code_clean import Make_Diff_Plot
 
 def NewMain():
 
     ShapeID = 'HDF' #'HDF'; #'LDT''HDT''LDB'LDR'LDL''LD5''LDF''HDF'
     ShapePlot = False; #True if we are making a shape plot, false if we are making a height difference plot
-    ModuleName = '320MHF1T4SB0018'
-    FileName = "320MHF1T4SB0018 50MRad C0VsC30 Difference"
+    ModuleName = '320-MHF-2TD-SB0235'
+    FileName = "320-MHF-2TD-SB0235 RT Cycle 100 Before vs After.png"
     #ColdVsRT  C0VsC30
+
+    """ShapeID = 'HDF'; #'LDT''HDT''LDB''LDR''LDL''LD5''LDF''HDF'
+    ShapePlot = False; #True if we are making a shape plot, false if we are making a height difference plot
+    ModuleName = '320MHF2WDSB0065';
+    File_Name_Final = "320MHF2WDSB0065 Barestage Cycle 100.xls"; #insert the file name here. For example, "MLR3TX-SB0002.xls"   Final in Final - Initial
+    File_Name_Initial = '320MHF2WDSB0065 Barestage Cycle 0.xls'; #insert the file name here. For example, "MLR3TX-SB0002.xls"  Initial in Final - Initial"""
+
+    a5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0027 InColdbox RT Cycle 100 again.xls"
+    a6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0027 InColdbox -20 Cycle 100 again.xls"
+    a7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0027 InColdbox RT Cycle 0.xls"
+    a8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0027 InColdbox -20 Cycle 0.xls"
+
+    b5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0073 InColdbox RT Cycle 100.xls"
+    b6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0073 InColdbox -20 Cycle 100.xls"
+    b7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0073 InColdbox RT Cycle 0.xls"
+    b8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0073 InColdbox -20 Cycle 0.xls"
+
+    c5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0012 InColdbox RT Cycle 100.xls"
+    c6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0012 InColdbox -20 Cycle 100.xls"
+    c7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0012 InColdbox RT Cycle 0.xls"
+    c8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0012 InColdbox -20 Cycle 0.xls"
+
+    d5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 InColdbox RT Cycle 100.xls"
+    d6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 InColdbox -20 Cycle 100.xls"
+    d7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 InColdbox RT Cycle 0.xls"
+    d8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 InColdbox -20 Cycle 0.xls"
+
+    e5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0235 InColdbox RT Cycle 100.xls"
+    e6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0235 InColdbox -20 Cycle 100.xls"
+    e7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0235 InColdbox RT Cycle 0.xls"
+    e8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0235 InColdbox -20 Cycle 0.xls"
+    e9 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0235 InColdbox RT Cycle 100 After Rebolting.xls"
+
+
+    f3 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox RT Cycle -70.xls"
+    f4 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox -20 Cycle -70.xls"
+    f5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox RT Cycle 100.xls"
+    f6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox -20 Cycle 100.xls"
+    f7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox RT Cycle 0.xls"
+    f8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox -20 Cycle 0.xls"
+
+
+
+    z1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0065 Barestage Cycle 100.xls"
+    z2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2WDSB0065 Barestage Cycle 0.xls"
+
+    y1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0065 Barestage Cycle 100.xls"; #insert the file name here. For example, "MLR3TX-SB0002.xls"   Final in Final - Initial
+    y2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0065 Barestage Cycle 0.xls"; #insert the file name here. For example, "MLR3TX-SB0002.xls"  Initial in Final - Initial
+
+    x1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0178 InColdbox -25 After Delamination.xls"
+    x2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0178 InColdbox RT After Delamination.xls"
 
 
     #320MLR3TXSB0002
@@ -56,8 +107,37 @@ def NewMain():
 
 
 
-    File_Name_Final = L2
-    File_Name_Initial = L1
+
+    M1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0244 InColdbox -20 Cycle 0.xls"
+    M2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0244 InColdbox RT Cycle 0.xls"
+    M3 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0244 InColdbox -20 Cycle 100.xls"
+    M4 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0244 InColdbox RT Cycle 100.xls"
+
+    N1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0238 InColdbox -20 Cycle 0.xls"
+    N2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0238 InColdbox RT Cycle 0.xls"
+    N3 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0238 InColdbox RT Cycle 100.xls"
+    N4 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0238 InColdbox -20 Cycle 100.xls"
+    
+    O1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0240 InColdbox -20 Cycle 0.xls"
+    O2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0240 InColdbox RT Cycle 0.xls"
+
+    P1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 1.xls"
+    P2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 2.xls"
+    P3 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 3.xls"
+    P4 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 4.xls"
+    P5 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 5.xls"
+    P6 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 6.xls"
+    P7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 7.xls"
+    P8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 8.xls"
+
+
+
+
+
+
+
+    File_Name_Final = e9
+    File_Name_Initial = e5
     
     if ShapePlot is True: DiffPlot = False
     else: DiffPlot = True;
@@ -90,16 +170,18 @@ def NewMain():
         print(f"Selected file (final): {Folder_final}")
         print(f"Selected file (initial): {Folder_Initial}")
         print(f"Module Name: {ModuleName}")
-    else: print(f"Selected file (Single): {Folder_final}")
+    else:
+        print(f"Selected file (Single): {Folder_final}")
     
-    selected_file = Folder_final.replace(folder_path, "")
-    selected_file2 = Folder_Initial.replace(folder_path, "")
-
     ModuleName2 = ModuleName
-    
+
     if ShapePlot is True:
-        Make_Diff_Plot(selected_file, selected_file, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot, FileName)
+        pg_data1 = PGConnect.main(ModuleName)
+        pg_data2 = PGConnect.main(ModuleName2)
+        Make_Diff_Plot(pg_data1, pg_data2, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot, FileName)
     elif DiffPlot is True:
+        selected_file = Folder_final.replace(folder_path, "")
+        selected_file2 = Folder_Initial.replace(folder_path, "")
         Make_Diff_Plot(selected_file, selected_file2, folder_path, ModuleName, ModuleName2, ShapeID, ShapePlot, FileName)
 
 
