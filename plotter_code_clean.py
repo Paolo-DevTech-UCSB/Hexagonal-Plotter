@@ -83,13 +83,26 @@ def Parse_XLS(selected_file, filepath):
     return Heightlist
 
 def CycleParse(loco):
-    if '100' in loco[-12:]: cycle = 100
-    elif '50' in loco[-12:]: cycle = 50
-    elif '30' in loco[-12:]: cycle = 30
-    elif '10' in loco[-12:]: cycle = 10
-    elif '5' in loco[-12:]: cycle = 5
-    else: cycle = 0
-    return cycle
+    lower_loco = str(loco).lower()
+    if '-71' in lower_loco or 'negative71' in lower_loco:
+        return -71
+    if '-70 again' in lower_loco or 'negative70 again' in lower_loco or '70 again' in lower_loco or '70again' in lower_loco:
+        return -71
+    if '-70' in lower_loco or 'negative70' in lower_loco:
+        return -70
+    if '100 again' in lower_loco or '100again' in lower_loco or ('again' in lower_loco and '100' in lower_loco):
+        return 101
+    if '100' in lower_loco:
+        return 100
+    if '50' in lower_loco:
+        return 50
+    if '30' in lower_loco:
+        return 30
+    if '10' in lower_loco:
+        return 10
+    if '5' in lower_loco:
+        return 5
+    return 0
 
 def Get_Meshgrid(ShapeID):
     if ShapeID == 'LDF' or ShapeID == 'HDF' or ShapeID == 'LD5':
@@ -173,7 +186,29 @@ def Get_Z_Fit(DX, DY, Z, DX2, DY2, Z2, points, points2):
     z_fit_2 = B @ D   #not used
 
     dz_fit = z_fit - z_fit_2   #used
+
+
+    # ==================== UNCERTAINTY PROPAGATION ====================
+    u_z=0.002 #This comes from a same mesaurement comparison
+
+    # Coefficient Covariance Matrices
+    cov_C = (u_z**2) * np.linalg.inv(A.T @ A)
+    cov_D = (u_z**2) * np.linalg.inv(B.T @ B)
+
+    # Propagated Uncertainty for Surface 1 & Surface 2
+    u_zfit1 = np.sqrt(np.sum((A @ cov_C) * A, axis=1))
+    u_zfit2 = np.sqrt(np.sum((B @ cov_D) * B, axis=1))
+
+    # Propagated Uncertainty for Difference Surface (dz_fit)
+    u_dz_fit = np.sqrt(u_zfit1**2 + u_zfit2**2)
     
+    print("CHECK HERE FOR UNCERTAINTY: ")
+    print("Uncertainty in dz_fit:", u_dz_fit)
+
+    Static_Root_Mean_Squared_Error = 0.02
+    # =================================================================
+
+
     # Solve for the coefficients
     if FITvFIT is True:
         errors = Z - z_fit
@@ -183,7 +218,7 @@ def Get_Z_Fit(DX, DY, Z, DX2, DY2, Z2, points, points2):
     FitMin  = min(dz_fit)
     FitMax  = max(dz_fit)
 
-    return z_fit, z_fit_2, dz_fit, errors, FitMin, FitMax, C, D
+    return z_fit, z_fit_2, dz_fit, errors, FitMin, FitMax, C, D, Static_Root_Mean_Squared_Error
 
 def Translate_Center(ShapeID, X_list, Y_list, Z_list, OGHeights):
     Adjusted_Heights = []; Adjusted_HeightsX = []; Adjusted_HeightsY = []; Adjusted_HeightsZ = []
@@ -326,10 +361,24 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     Comments = ''
     mtype = 'ALL'; #barestage, coldbox, unconstrained, ALL
     
-    #  1. Retreive Raw Height Data from Excel Files
+    #  1. Retreive Raw Height Data from Excel Files or PostgreSQL
     
-    Heightlist = Parse_XLS(selected_file, folder_path)
-    Heightlist2 = Parse_XLS(selected_file2, folder_path)
+    # Check if selected_file is already a heightlist dictionary (from PostgreSQL) or a file path
+    if isinstance(selected_file, dict) and "Heightlist2" in selected_file:
+        # Data from PostgreSQL via PGConnect
+        Heightlist = selected_file["Heightlist2"]
+    else:
+        # Data from Excel file
+        Heightlist = Parse_XLS(selected_file, folder_path)
+    
+    # Check if selected_file2 is already a heightlist dictionary (from PostgreSQL) or a file path
+    if isinstance(selected_file2, dict) and "Heightlist2" in selected_file2:
+        # Data from PostgreSQL via PGConnect
+        Heightlist2 = selected_file2["Heightlist2"]
+    else:
+        # Data from Excel file
+        Heightlist2 = Parse_XLS(selected_file2, folder_path)
+    
     #    fileloco2 = selected_file2;
     print("Heightlist2:", Heightlist2)
     print("Length:", len(Heightlist2))
@@ -360,8 +409,12 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     DX = X; DX2 = X;
     DY = Y; DY2 = Y;
     
-    z_fit, z_fit_2, dz_fit, errors, fit_min, fit_max, C, D = Get_Z_Fit(DX, DY, Z, DX2, DY2, Z2, points, points2)
+    z_fit, z_fit_2, dz_fit, errors, fit_min, fit_max, C, D, Uncertainties = Get_Z_Fit(DX, DY, Z, DX2, DY2, Z2, points, points2)
     
+    NEW_UNCERTAINTY = np.max(Uncertainties)
+
+    print("NEW_UNCERTAINTY:", NEW_UNCERTAINTY)
+
     errorsMax = round(max(errors),2);
     total_error = np.sum(np.abs(errors))
 
@@ -492,21 +545,23 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         error_message = f"Maximum Error Between Measurement and Fit +/-{errorsMax}mm "
     #fig.text(0.5, 0.06, error_message, ha='center', fontsize=8, color='black')
     
-    
-    dirs = selected_file.replace(".xls","").replace(modulename,"")
-
-    
-    filename_1 = selected_file;
-    edit1 = filename_1.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\\", "")
-    edit2 = edit1.replace(r"Full", '').replace("\\","").replace("TOP","")
-    main_name = edit2.split()[0]
-    
-    #print("This is main name", main_name)
-    
-    
-    #shortmodulename = modulename[14:]
-    shortmodulenameedit = selected_file.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD ", "").replace(r"Full", '').replace("\\","");
-    shortmodulename = shortmodulenameedit.replace('.xls','').replace(main_name, '')
+    # Handle both file paths (strings) and PostgreSQL data (dicts)
+    if isinstance(selected_file, dict):
+        # PostgreSQL data - use module name for titles
+        dirs = ""
+        main_name = modulename
+        shortmodulename = ""
+    else:
+        # File path - extract title from filename
+        dirs = selected_file.replace(".xls","").replace(modulename,"")
+        filename_1 = selected_file;
+        edit1 = filename_1.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\\", "")
+        edit2 = edit1.replace(r"Full", '').replace("\\","").replace("TOP","")
+        main_name = edit2.split()[0]
+        
+        #shortmodulename = modulename[14:]
+        shortmodulenameedit = selected_file.replace(r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD ", "").replace(r"Full", '').replace("\\","");
+        shortmodulename = shortmodulenameedit.replace('.xls','').replace(main_name, '')
     
     if ShapePlot == False:
         title = main_name + " Height Movement Plot" ;
@@ -712,6 +767,10 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
              ha='left', va='center', fontsize=8, color='black',
              zorder=20)
 
+    fig.text(0.18, 0.02, f"Uncertainty: ±{NEW_UNCERTAINTY:.3f} mm",
+             ha='left', va='center', fontsize=8, color='black',
+             bbox=dict(facecolor='white', edgecolor='none', alpha=0.8), zorder=20)
+
     # --- Top-line annotations: Phase and CMS Preliminary on same baseline ---
     # Phase 2 at top-right (do NOT shift this one)
     fig.text(0.98, 0.90, "Phase 2", ha="right", va="top", fontsize=16, fontweight="bold")
@@ -787,6 +846,43 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
             except Exception:
                 pass
 
+    def _draw_post_save_dotted_line(image_path, x0, y0, x1, y1, color=(0, 0, 0), step=2):
+        try:
+            from PIL import Image
+        except Exception:
+            try:
+                print("Pillow not installed; skipping pixel edit for:", image_path)
+            except Exception:
+                pass
+            return
+
+        try:
+            im = Image.open(image_path).convert("RGBA")
+            width, height = im.size
+
+            if x0 > x1:
+                x0, x1 = x1, x0
+            if y0 > y1:
+                y0, y1 = y1, y0
+
+            if x0 < 0 or y0 < 0 or x1 >= width or y1 >= height:
+                return
+
+            for x in range(x0, x1 + 1, step):
+                if 0 <= x < width and 0 <= y0 < height:
+                    im.putpixel((x, y0), color)
+
+            for x in range(x0, x1 + 1, step):
+                if 0 <= x < width and 0 <= y1 < height:
+                    im.putpixel((x, y1), color)
+
+            im.save(image_path)
+        except Exception as e:
+            try:
+                print(f"Error editing image pixels {image_path}: {e}")
+            except Exception:
+                pass
+
 
     save_path = _make_save_path(FileName)
 
@@ -797,6 +893,10 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         plt.savefig(save_path)
         # Crop left 80 pixels from saved image to remove left-edge overflow
         _crop_left_top_pixels(save_path, left_pixels=105, top_pixels=40)
+        #_draw_post_save_dotted_line(save_path, 454 - 105 + 104, 199 - 40 + 40, 471 - 105 + 104, 199 - 40 + 40)
+        _draw_post_save_dotted_line(save_path, 453, 187, 471, 187)
+        #_draw_post_save_dotted_line(save_path, 454 - 105 + 104, 201 - 40 + 40, 471 - 105 + 104, 201 - 40 + 40)
+        _draw_post_save_dotted_line(save_path, 453, 213, 471, 213)
     else:
         if Comments:
             print(); print("saving into:", save_path )
@@ -805,6 +905,8 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         plt.savefig(save_path)
         # Crop left 80 pixels from saved image to remove left-edge overflow
         _crop_left_top_pixels(save_path, left_pixels=105, top_pixels=40)
+        _draw_post_save_dotted_line(save_path, 453, 187, 471, 187)
+        _draw_post_save_dotted_line(save_path, 453, 213, 471, 213)
     #filenames.append(dirs + '\\GIFS\\tempphotos\\' + str(i) + '.png')
 
     #print("frame", i)

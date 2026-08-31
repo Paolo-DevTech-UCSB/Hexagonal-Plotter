@@ -142,6 +142,16 @@ def Folder_Path(ShapeID):
 
 def CycleParse(loco):
     lower_loco = str(loco).lower()
+    if '+30' in lower_loco or 'plus30' in lower_loco or '30+' in lower_loco:
+        return 30
+    if '+40' in lower_loco or 'plus40' in lower_loco or '40+' in lower_loco:
+        return 40
+    if '+45' in lower_loco or 'plus45' in lower_loco or '45+' in lower_loco:
+        return 45
+    if '-71' in lower_loco or 'negative71' in lower_loco:
+        return -71
+    if '-70 again' in lower_loco or 'negative70 again' in lower_loco or '70 again' in lower_loco or '70again' in lower_loco:
+        return -71
     if '-70' in lower_loco or 'negative70' in lower_loco:
         return -70
     if '100 again' in lower_loco or '100again' in lower_loco or 'again' in lower_loco and '100' in lower_loco:
@@ -170,6 +180,19 @@ def ConditionLabel(loco):
     if 'uncon' in lower:
         return 'Unconstrained'
     return 'Unknown'
+
+
+def ClassifyMeasurementType(suffix):
+    lower = str(suffix).lower()
+    if 'uncon' in lower:
+        return 'unconstrained'
+    if 'bare' in lower or 'stage' in lower:
+        return 'barestage'
+    if 'rt' in lower or 'room temperature' in lower or 'room temp' in lower:
+        return 'coldbox_rt'
+    if 'cold' in lower or 'coldbox' in lower:
+        return 'coldbox_cold'
+    return None
 
 
 def BuildPlotFileName(selected_file, selected_file2, modulename, ShapePlot):
@@ -495,25 +518,12 @@ def GetDataBreakDown(modulename, folder_path, ShapeID):
         #print(f"Module: {key}")
         for suffix, info in files.items():
             labeled_info = dict(zip(labels, info))
-            if 'Unconstrained' in suffix or 'uncon' in suffix:
-                #print('unconstrained')
-                measurements["unconstrained"].append((suffix, labeled_info))
-                Survey_Count += 1;
-    
-            elif 'bare' in suffix or 'Bare' in suffix or 'stage' in suffix:
-                #print("barestage")
-                measurements["barestage"].append((suffix, labeled_info))
-                Survey_Count += 1;
-    
-            elif ('Cold' in suffix or 'cold' in suffix) and ('RT' not in suffix and 'rt' not in suffix):
-                #print("coldbox at cold")
-                measurements["coldbox_cold"].append((suffix, labeled_info))
-                Survey_Count += 1;
-    
-            elif ('Cold' in suffix or 'cold' in suffix) and ('RT' in suffix or 'rt' in suffix):
-                #print("coldbox at rt")
-                measurements["coldbox_rt"].append((suffix, labeled_info))
-                Survey_Count += 1;
+            measurement_type = ClassifyMeasurementType(suffix)
+            if measurement_type is None:
+                continue
+
+            measurements[measurement_type].append((suffix, labeled_info))
+            Survey_Count += 1;
                 
     return measurements;
 
@@ -715,5 +725,6 @@ def NewMain():
             OldMain(Pair[0][0], Pair[0][1], ShapeID, True, False, Labels, Pair[2], Comments, Pair[1][0], Pair[1][1])
             
 #OldMain();
-NewMain()
+if __name__ == "__main__":
+    NewMain()
     

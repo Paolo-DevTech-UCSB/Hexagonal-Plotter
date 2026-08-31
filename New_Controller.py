@@ -6,9 +6,9 @@ from plotter_code_clean import Make_Diff_Plot
 def NewMain():
 
     ShapeID = 'HDF' #'HDF'; #'LDT''HDT''LDB'LDR'LDL''LD5''LDF''HDF'
-    ShapePlot = False; #True if we are making a shape plot, false if we are making a height difference plot
-    ModuleName = '320-MHF-2TD-SB0235'
-    FileName = "320-MHF-2TD-SB0235 RT Cycle 100 Before vs After.png"
+    ShapePlot = True; #True if we are making a shape plot, false if we are making a height difference plot
+    ModuleName = '320-MHF-2TD-SB0234'
+    FileName = "320-MHF-2TD-SB0234 RT Shape at +30.png"
     #ColdVsRT  C0VsC30
 
     """ShapeID = 'HDF'; #'LDT''HDT''LDB''LDR''LDL''LD5''LDF''HDF'
@@ -130,14 +130,18 @@ def NewMain():
     P7 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 7.xls"
     P8 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0008 2025 Error Measure 8.xls"
 
+    K1 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox RT Cycle +40.xls"
+    K2 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox RT Cycle +45.xls"
+    K3 = r"C:\Users\Admin\Documents\OGPQualityControl-master\data\HD full\320MHF2TDSB0234 InColdbox RT Cycle +30.xls"
 
 
 
 
 
 
-    File_Name_Final = e9
-    File_Name_Initial = e5
+
+    File_Name_Final = K3
+    File_Name_Initial = K3
     
     if ShapePlot is True: DiffPlot = False
     else: DiffPlot = True;
