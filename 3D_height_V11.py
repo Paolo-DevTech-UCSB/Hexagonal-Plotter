@@ -33,6 +33,7 @@ from plotter_code_clean import Make_Diff_Plot as CleanMakeDiffPlot
 #For other Operations
 import os
 import datetime
+import re
 
 workDir = os.getcwd()
 
@@ -142,6 +143,17 @@ def Folder_Path(ShapeID):
 
 def CycleParse(loco):
     lower_loco = str(loco).lower()
+    cycle_match = re.search(r'\bcycle\s*([+-]?\d+)\b', lower_loco)
+    if cycle_match:
+        cycle = int(cycle_match.group(1))
+        if cycle == 100 and 'again' in lower_loco:
+            return 101
+        if cycle == 70 and 'again' in lower_loco:
+            return -71
+        if cycle == -70 and 'again' in lower_loco:
+            return -71
+        return cycle
+
     if '+30' in lower_loco or 'plus30' in lower_loco or '30+' in lower_loco:
         return 30
     if '+40' in lower_loco or 'plus40' in lower_loco or '40+' in lower_loco:
@@ -193,6 +205,14 @@ def ClassifyMeasurementType(suffix):
     if 'cold' in lower or 'coldbox' in lower:
         return 'coldbox_cold'
     return None
+
+
+def OrderThermalPair(first_loco, second_loco):
+    first_type = ClassifyMeasurementType(first_loco)
+    second_type = ClassifyMeasurementType(second_loco)
+    if first_type == 'coldbox_rt' and second_type == 'coldbox_cold':
+        return second_loco, first_loco
+    return first_loco, second_loco
 
 
 def BuildPlotFileName(selected_file, selected_file2, modulename, ShapePlot):
@@ -684,6 +704,7 @@ def NewMain():
                 cycle_buckets[mtype][cycle] = loco
 
         def add_pair(left_loco, right_loco, pair_type):
+            left_loco, right_loco = OrderThermalPair(left_loco, right_loco)
             pair_key = tuple(sorted([(left_loco, right_loco), (right_loco, left_loco)]))
             if pair_key in seen_pairs:
                 return
