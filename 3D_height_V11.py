@@ -215,6 +215,16 @@ def OrderThermalPair(first_loco, second_loco):
     return first_loco, second_loco
 
 
+def OrderBatchPair(first_loco, second_loco):
+    first_loco, second_loco = OrderThermalPair(first_loco, second_loco)
+    first_type = ClassifyMeasurementType(first_loco)
+    second_type = ClassifyMeasurementType(second_loco)
+    if first_type == second_type and first_type is not None:
+        if CycleParse(first_loco) < CycleParse(second_loco):
+            return second_loco, first_loco
+    return first_loco, second_loco
+
+
 def BuildPlotFileName(selected_file, selected_file2, modulename, ShapePlot):
     base_name = modulename.replace(' ', '')
     cycleF1 = CycleParse(selected_file)
@@ -704,7 +714,7 @@ def NewMain():
                 cycle_buckets[mtype][cycle] = loco
 
         def add_pair(left_loco, right_loco, pair_type):
-            left_loco, right_loco = OrderThermalPair(left_loco, right_loco)
+            left_loco, right_loco = OrderBatchPair(left_loco, right_loco)
             pair_key = tuple(sorted([(left_loco, right_loco), (right_loco, left_loco)]))
             if pair_key in seen_pairs:
                 return

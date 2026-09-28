@@ -30,6 +30,16 @@ def test_thermal_pair_is_always_ordered_cold_then_rt():
     assert module.OrderThermalPair(cold_file, rt_file) == (cold_file, rt_file)
 
 
+def test_batch_pair_orders_later_same_condition_cycle_first():
+    rt_cycle_0 = "320MHF2WDSB0085 InColdbox RT Cycle 0.xls"
+    rt_cycle_10 = "320MHF2WDSB0085 InColdbox RT Cycle 10.xls"
+    cold_cycle_0 = "320MHF2WDSB0085 InColdbox -20 Cycle 0.xls"
+    cold_cycle_10 = "320MHF2WDSB0085 InColdbox -20 Cycle 10.xls"
+
+    assert module.OrderBatchPair(rt_cycle_0, rt_cycle_10) == (rt_cycle_10, rt_cycle_0)
+    assert module.OrderBatchPair(cold_cycle_0, cold_cycle_10) == (cold_cycle_10, cold_cycle_0)
+
+
 def test_cycle_parse_uses_cycle_number_not_module_serial_number():
     rt_file = "320MHF2WDSB0085 InColdbox RT Cycle 0.xls"
     cold_file = "320MHF2WDSB0085 InColdbox -20 Cycle 0.xls"

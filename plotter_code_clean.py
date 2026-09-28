@@ -4,6 +4,7 @@ from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 import os
+import re
 import pandas as pd
 import scipy.linalg
 
@@ -12,7 +13,7 @@ b = 10/12
 g = 1
 a = 2.0
 
-def Parse_XLS(selected_file, filepath):
+def Parse_XLS(selected_file, filepath, return_surface_profile=False):
     fileloco = selected_file;
     if os.path.isabs(fileloco):
         fullpath = fileloco
@@ -21,6 +22,13 @@ def Parse_XLS(selected_file, filepath):
 
     df = pd.read_excel(fullpath)
     my_array = df.values
+    surface_profile = None
+    for line in my_array:
+        if len(line) > 5 and str(line[3]).strip().casefold() == 'surface profile':
+            surface_profile = line[5]
+            break
+    print(f"Surface Profile: {surface_profile if surface_profile is not None else 'Not found'}")
+
     newlist = [];
 
     for line in my_array:
@@ -80,7 +88,53 @@ def Parse_XLS(selected_file, filepath):
                 #print(lastname, 'Z:', line[5])
                 Heightlist.append([lastname, 'Z', line[5], line[2]])
         else: skiplines = skiplines - 1;
+    if return_surface_profile:
+        return Heightlist, surface_profile
     return Heightlist
+
+
+def _flatness_source_label(source):
+    if not isinstance(source, str):
+        return None
+
+    lower_source = source.lower()
+    if 'rt' in lower_source:
+        condition = 'RT'
+    elif 'cold' in lower_source:
+        condition = 'Cold'
+    elif 'bare' in lower_source or 'stage' in lower_source:
+        condition = 'Barestage'
+    elif 'uncon' in lower_source:
+        condition = 'Unconstrained'
+    else:
+        return None
+
+    cycle = re.search(r'\bcycle\s*([+-]?\d+)\b', source, re.IGNORECASE)
+    return f"{condition}_{cycle.group(1)}" if cycle else condition
+
+
+def _format_flatness_label(surface_profile1, surface_profile2, source1=None, source2=None):
+    def format_value(value):
+        if value is None or pd.isna(value) or not str(value).strip():
+            return None
+        return str(value).strip()
+
+    value1 = format_value(surface_profile1)
+    value2 = format_value(surface_profile2)
+    if value1 is None and value2 is None:
+        return None
+    if value1 is None or value2 is None:
+        return f"Flatness = {value1 or value2}"
+
+    source_label1 = _flatness_source_label(source1)
+    source_label2 = _flatness_source_label(source2)
+    if value1 == value2 and source_label1 == source_label2:
+        if source_label1:
+            return f"Flatness ({source_label1}): {value1}"
+        return f"Flatness = {value1}"
+    if source_label1 and source_label2:
+        return f"Flatness: {source_label1} - {source_label2}: {value1} - {value2} (mm)"
+    return f"Flatness (input 1 / input 2) = {value1} / {value2}"
 
 def CycleParse(loco):
     lower_loco = str(loco).lower()
@@ -364,12 +418,16 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     #  1. Retreive Raw Height Data from Excel Files or PostgreSQL
     
     # Check if selected_file is already a heightlist dictionary (from PostgreSQL) or a file path
+    surface_profile1 = None
+    surface_profile2 = None
     if isinstance(selected_file, dict) and "Heightlist2" in selected_file:
         # Data from PostgreSQL via PGConnect
         Heightlist = selected_file["Heightlist2"]
     else:
         # Data from Excel file
-        Heightlist = Parse_XLS(selected_file, folder_path)
+        Heightlist, surface_profile1 = Parse_XLS(
+            selected_file, folder_path, return_surface_profile=True
+        )
     
     # Check if selected_file2 is already a heightlist dictionary (from PostgreSQL) or a file path
     if isinstance(selected_file2, dict) and "Heightlist2" in selected_file2:
@@ -377,7 +435,9 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
         Heightlist2 = selected_file2["Heightlist2"]
     else:
         # Data from Excel file
-        Heightlist2 = Parse_XLS(selected_file2, folder_path)
+        Heightlist2, surface_profile2 = Parse_XLS(
+            selected_file2, folder_path, return_surface_profile=True
+        )
     
     #    fileloco2 = selected_file2;
     print("Heightlist2:", Heightlist2)
@@ -766,6 +826,13 @@ def Make_Diff_Plot(selected_file, selected_file2, folder_path, modulename, modul
     fig.text(legend_x + value_gap + swatch_w + 0.008, legend_y + swatch_h / 2, f"{z_min:.3f}",
              ha='left', va='center', fontsize=8, color='black',
              zorder=20)
+
+    flatness_label = _format_flatness_label(
+        surface_profile1, surface_profile2, selected_file, selected_file2
+    )
+    if flatness_label:
+        fig.text(0.18, 0.055, flatness_label,
+                 ha='left', va='center', fontsize=8, color='black', zorder=21)
 
     fig.text(0.18, 0.02, f"Uncertainty: ±{NEW_UNCERTAINTY:.3f} mm",
              ha='left', va='center', fontsize=8, color='black',
